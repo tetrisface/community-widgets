@@ -33,18 +33,13 @@ You can ask in here also but the instructions apply to regular widgets, not rmlw
 ---------- MESSAGE LIMIT BREAK ----------
 
 
-**Core features**
-- Three table views: **Raw** totals / **Share%** / **Time Weighted** (inflation-adjusted)
+# **Core features**
+- Three table views: **Raw** totals / **Share / %** / **Time Weighted** (inflation-adjusted)
 - **Graph** with three modes — stacked absolute (bar height = raw activity, splits = time-weighted shares), stacked normalized (always 100%), and overlay (independent player lines)
 - Graph time-weight toggle: raw per-window values vs time-weighted per-window values
 - Players who leave mid-game **keep their stats visible**
 - Ally team selector to isolate one team in the graph; separator between ally groups in grouped table mode
 - Drag to move, resizable panel, configurable window aggregation (1x/2x/4x/8x — higher options only appear when there is enough data)
-
-**Niche**
-- Most useful in longer or uneven games where eco scaling makes raw numbers misleading
-- Share / % view: who did what fraction of the team's work
-- Time Weighted view: who punched above their weight considering *when* they did it
 
 # TROUBLESHOOTING / Problems installing or running
 
