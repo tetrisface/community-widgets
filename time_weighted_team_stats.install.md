@@ -12,14 +12,13 @@ $n="time_weighted_team_stats"; $d="$env:LOCALAPPDATA\Programs\Beyond-All-Reason\
 1. Create a folder called `rmlwidgets` in `%homepath%\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI` if you dont already have it
 2. Download the zip from https://github.com/tetrisface/time_weighted_team_stats/archive/refs/heads/main.zip
 3. Open the zip and the `time_weighted_team_stats-main` folder inside it
-4. Rename `time_weighted_team_stats-main` to `time_weighted_team_stats`
-5. Open file explorer and go to the path `%homepath%\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\rmlwidgets`
-6. Drag the `time_weighted_team_stats` folder into `rmlwidgets`
-7. Verify this folder structure
+4. Open file explorer and go to the path `%homepath%\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\rmlwidgets`
+5. Drag the `time_weighted_team_stats-main` folder into `rmlwidgets`
+6. Verify this folder structure
 ```
 LuaUI/
 └─ rmlwidgets/
-   └─ time_weighted_team_stats/
+   └─ time_weighted_team_stats-main/
       ├─ time_weighted_team_stats.lua
       ├─ time_weighted_team_stats.rml
       └─ time_weighted_team_stats.rcss
@@ -27,7 +26,8 @@ LuaUI/
 # 2. Enable
 Restart BAR or run `/luaui reload`, then enable **Time Weighted Team Stats** in the widget list (F11).
 # Help / Troubleshooting
-You can ask in here also but the instructions apply to regular widgets. Not rmlwidgets yet #❓｜how-to-install-mods
+You can ask in here also but the instructions apply to regular widgets, not rmlwidgets yet: 
+#❓｜how-to-install-mods
 
 
 ---------- MESSAGE LIMIT BREAK ----------
