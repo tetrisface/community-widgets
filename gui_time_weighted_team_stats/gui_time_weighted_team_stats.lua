@@ -5,7 +5,7 @@ end
 local widget = widget ---@type Widget
 local WIDGET_NAME = 'Time Weighted Team Stats'
 local MODEL_NAME = 'weighted_team_stats'
-local RML_PATH = 'luaui/rmlwidgets/time_weighted_team_stats/time_weighted_team_stats.rml'
+local RML_PATH = 'LuaUI/Widgets/gui_time_weighted_team_stats/gui_time_weighted_team_stats.rml'
 local STATS_UPDATE_FREQUENCY = 60 -- ~2 seconds
 local LOBBY_OVERLAY_MESSAGE_PREFIX = 'LobbyOverlayActive'
 

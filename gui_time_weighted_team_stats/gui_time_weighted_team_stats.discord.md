@@ -6,27 +6,26 @@ Raw totals lie. In a long game the last 5 minutes of eco output can make the fir
 ### __Automatic__
 On Windows with BAR installed in the default location open powershell and run:
 ```pwsh
-$n="time_weighted_team_stats"; $d="$env:LOCALAPPDATA\Programs\Beyond-All-Reason\data\LuaUI\rmlwidgets\$n"; $u="https://raw.githubusercontent.com/tetrisface/time_weighted_team_stats/main/$n"; New-Item -ItemType Directory -Force $d | Out-Null; 'lua','rml','rcss'|%{iwr "$u.$_" -OutFile "$d\$n.$_"}
+$n="gui_time_weighted_team_stats"; $d="$env:LOCALAPPDATA\Programs\Beyond-All-Reason\data\LuaUI\Widgets\$n"; $u="https://raw.githubusercontent.com/tetrisface/time_weighted_team_stats/main/$n/$n"; New-Item -ItemType Directory -Force $d | Out-Null; 'lua','rml','rcss'|%{iwr "$u.$_" -OutFile "$d\$n.$_"}
 ```
 ### __Manual__
-1. Create a folder called `rmlwidgets` in `%homepath%\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI` if you dont already have it
+1. Open `%homepath%\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\Widgets`
 2. Download the zip from https://github.com/tetrisface/time_weighted_team_stats/archive/refs/heads/main.zip
 3. Open the zip and the `time_weighted_team_stats-main` folder inside it
-4. Open file explorer and go to the path `%homepath%\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\rmlwidgets`
-5. Drag the `time_weighted_team_stats-main` folder into `rmlwidgets`
-6. Verify this folder structure
+4. Drag the `gui_time_weighted_team_stats` folder into `Widgets`
+5. Verify this folder structure
 ```
 LuaUI/
-└─ rmlwidgets/
-   └─ time_weighted_team_stats-main/
-      ├─ time_weighted_team_stats.lua
-      ├─ time_weighted_team_stats.rml
-      └─ time_weighted_team_stats.rcss
+└─ Widgets/
+   └─ gui_time_weighted_team_stats/
+      ├─ gui_time_weighted_team_stats.lua
+      ├─ gui_time_weighted_team_stats.rml
+      └─ gui_time_weighted_team_stats.rcss
 ```
 # 2. Enable
 Restart BAR or run `/luaui reload`, then enable **Time Weighted Team Stats** in the widget list (F11).
 # Help / Troubleshooting
-You can ask in here also but the instructions apply to regular widgets, not rmlwidgets yet: 
+You can also ask for help here or in:
 #❓｜how-to-install-mods
 
 
@@ -46,9 +45,9 @@ You can ask in here also but the instructions apply to regular widgets, not rmlw
 Assuming you are on windows, please run these commands in powershell, take the widget menu screenshot and post the results here or send directly to ChatGPT :slight_smile:
 ## 1. 
 ```pwsh
-Select-String -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\log\*.*","$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\infolog.txt" -Pattern 'time_weighted_team_stats' -SimpleMatch -Context 0,3 -AllMatches
-Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\rmlwidgets"
-Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\rmlwidgets\time_weighted_team_stats"
+Select-String -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\log\*.*","$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\infolog.txt" -Pattern 'gui_time_weighted_team_stats' -SimpleMatch -Context 0,3 -AllMatches
+Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\Widgets"
+Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\Widgets\gui_time_weighted_team_stats"
 ```
 The infolog results will include your username and maybe your name if not removed.
 ## 2.
