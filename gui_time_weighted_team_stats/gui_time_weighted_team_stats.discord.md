@@ -3,15 +3,19 @@
 **Why time-weighting?**
 Raw totals lie. In a long game the last 5 minutes of eco output can make the first 20 irrelevant by numbers alone. This widget deflates each stat window-by-window using that stat's own per-window team total as the divisor — so early damage, early metal production, and early support all count at fair weight relative to when they happened.
 # 1. Install
-### __Automatic__
+
+### __Chobby plugin__
+Install via the chobby included plugins downloader
+
+### __Scripted Automatic__
 On Windows with BAR installed in the default location open powershell and run:
 ```pwsh
-$n="gui_time_weighted_team_stats"; $d="$env:LOCALAPPDATA\Programs\Beyond-All-Reason\data\LuaUI\Widgets\$n"; $u="https://raw.githubusercontent.com/tetrisface/time_weighted_team_stats/main/$n/$n"; New-Item -ItemType Directory -Force $d | Out-Null; 'lua','rml','rcss'|%{iwr "$u.$_" -OutFile "$d\$n.$_"}
+$n="gui_time_weighted_team_stats"; $d="$env:LOCALAPPDATA\Programs\Beyond-All-Reason\data\LuaUI\Widgets\$n"; $u="https://raw.githubusercontent.com/tetrisface/community-widgets/main/$n/$n"; New-Item -ItemType Directory -Force $d | Out-Null; 'lua','rml','rcss'|%{iwr "$u.$_" -OutFile "$d\$n.$_"}
 ```
 ### __Manual__
-1. Open `%homepath%\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\Widgets`
-2. Download the zip from https://github.com/tetrisface/time_weighted_team_stats/archive/refs/heads/main.zip
-3. Open the zip and the `time_weighted_team_stats-main` folder inside it
+1. Open `%LOCALAPPDATA%\Programs\Beyond-All-Reason\data\LuaUI\Widgets`
+2. Download the zip from https://github.com/tetrisface/community-widgets/archive/refs/heads/main.zip
+3. Open the zip and the `community-widgets-main` folder inside it
 4. Drag the `gui_time_weighted_team_stats` folder into `Widgets`
 5. Verify this folder structure
 ```
@@ -45,9 +49,9 @@ You can also ask for help here or in:
 Assuming you are on windows, please run these commands in powershell, take the widget menu screenshot and post the results here or send directly to ChatGPT :slight_smile:
 ## 1. 
 ```pwsh
-Select-String -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\log\*.*","$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\infolog.txt" -Pattern 'gui_time_weighted_team_stats' -SimpleMatch -Context 0,3 -AllMatches
-Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\Widgets"
-Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Programs\Beyond-All-Reason\data\LuaUI\Widgets\gui_time_weighted_team_stats"
+Select-String -Path "$env:LOCALAPPDATA\Programs\Beyond-All-Reason\data\log\*.*","$env:LOCALAPPDATA\Programs\Beyond-All-Reason\data\infolog.txt" -Pattern 'gui_time_weighted_team_stats' -SimpleMatch -Context 0,3 -AllMatches
+Get-ChildItem -Path "$env:LOCALAPPDATA\Programs\Beyond-All-Reason\data\LuaUI\Widgets"
+Get-ChildItem -Path "$env:LOCALAPPDATA\Programs\Beyond-All-Reason\data\LuaUI\Widgets\gui_time_weighted_team_stats"
 ```
 The infolog results will include your username and maybe your name if not removed.
 ## 2.

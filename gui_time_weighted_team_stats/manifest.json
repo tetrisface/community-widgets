@@ -4,7 +4,7 @@
   "display_name": "Time Weighted Team Stats",
   "author": "tetrisface",
   "discord_link": "https://discord.com/channels/549281623154229250/1497660088104517632",
-  "github_link": "https://github.com/tetrisface/time_weighted_team_stats/blob/main/gui_time_weighted_team_stats/gui_time_weighted_team_stats.lua",
+  "github_link": "https://github.com/tetrisface/community-widgets/blob/main/gui_time_weighted_team_stats/gui_time_weighted_team_stats.lua",
   "description": "Player eco and damage statistics with graph and table fully resizable",
   "last_updated": "2026-07-15T19:38:37.000Z"
 }

@@ -1,0 +1,30 @@
+name: PvE Stats Lua tests
+
+on:
+  push:
+    paths:
+      - "gui_pve_stats/**"
+      - ".github/workflows/pve-stats-tests.yml"
+  pull_request:
+    paths:
+      - "gui_pve_stats/**"
+      - ".github/workflows/pve-stats-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lua: ["5.1", "5.4"]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lua ${{ matrix.lua }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes lua${{ matrix.lua }}
+      - name: Run PvE Stats suite
+        run: lua${{ matrix.lua }} gui_pve_stats/tests/run.lua gui_pve_stats/
