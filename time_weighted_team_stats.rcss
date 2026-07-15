@@ -31,11 +31,6 @@ body, div {
 	align-items: center;
 	padding: 0 8dp;
 	flex-shrink: 0;
-}
-
-.title-bar handle {
-	display: flex;
-	align-items: center;
 	cursor: move;
 }
 
@@ -62,6 +57,7 @@ body, div {
 	cursor: pointer;
 	padding: 2dp 4dp;
 	background-color: #0F1419;
+	drag: block;
 }
 
 .ctrl-btn:hover {
@@ -82,6 +78,7 @@ body, div {
 	cursor: pointer;
 	padding: 0 4dp;
 	margin-left: 4dp;
+	drag: block;
 }
 
 .close-btn:hover {

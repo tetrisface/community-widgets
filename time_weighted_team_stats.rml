@@ -8,12 +8,10 @@
 <body id="weighted-team-stats-widget">
 	<div id="wts-panel" class="panel" data-model="weighted_team_stats" onmouseup="widget:OnDragEnd(event)">
 		<!-- Title Bar -->
-		<div id="wts-title-bar" class="title-bar">
-			<handle move_target="wts-panel" edge_margin="none">
-				<div class="title-content">
-					<span class="title-text">Time Weighted Team Stats</span>
-				</div>
-			</handle>
+		<handle id="wts-title-bar" class="title-bar" move_target="wts-panel" edge_margin="none">
+			<div class="title-content">
+				<span class="title-text">Time Weighted Team Stats</span>
+			</div>
 			<!-- Graph Mode + Deflation toggles -->
 			<div class="title-controls">
 				<div class="ctrl-btn" onclick="widget:CycleGraphMode(event)">{{graph_mode_label}}</div>
@@ -25,7 +23,7 @@
 				<div class="ctrl-btn" data-class-active="table_visible" onclick="widget:ToggleTable(event)">Tbl</div>
 				<div class="close-btn" onclick="widget:CloseWidget(event)">X</div>
 			</div>
-		</div>
+		</handle>
 
 		<!-- Stat Selector Buttons -->
 		<div id="wts-stat-selector" class="stat-selector" data-if="has_data">
