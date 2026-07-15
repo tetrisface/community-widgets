@@ -589,6 +589,7 @@ local windowFrames = {} -- frame numbers for X-axis
 local graphDisplayList
 local graphMaxVal = 0 -- Y-axis max stored at display-list build time for label rendering
 local graphWindowCount = 0 -- effective window count after trimming trailing sparse windows
+local graphTeamsInDrawOrder = {} -- bottom-to-top for stacked graphs; first-to-last for overlay graphs
 
 -- Number formatting
 local function FormatSI(value)
@@ -1161,6 +1162,7 @@ local function RebuildGraphDisplayList()
 		glDeleteList(graphDisplayList)
 		graphDisplayList = nil
 	end
+	graphTeamsInDrawOrder = {}
 
 	if windowCount < 2 then
 		return
@@ -1263,6 +1265,7 @@ local function RebuildGraphDisplayList()
 		return
 	end
 	local wcDivisor = wc - 1
+	graphTeamsInDrawOrder = graphTeams
 
 	graphDisplayList = glCreateList(function()
 		if graphMode == 'overlay' then
@@ -1639,31 +1642,18 @@ function widget:DrawScreen()
 			-- Gather per-player values at this window
 			local tooltipLines = {} ---@type table[]
 			local tooltipTime = timeStr
-			for _, allyInfo in ipairs(cachedAllyTeams) do
-				if not selectedAllyTeam or allyInfo.allyID == selectedAllyTeam then
-					for _, teamID in ipairs(allyInfo.teamIDs) do
-						local info = cachedTeamInfo[teamID]
-						if info then
-							local dataSource
-							if activeStat == 'dmgPerRes' then
-								dataSource = cachedPerWindowDmgPerRes[teamID]
-							elseif activeStat == 'dmgEff' then
-								dataSource = cachedPerWindowDmgEff[teamID]
-							elseif graphDeflated then
-								dataSource = cachedPerWindowDeflated[teamID] and cachedPerWindowDeflated[teamID][activeStat]
-							else
-								dataSource = cachedPerWindowRaw[teamID] and cachedPerWindowRaw[teamID][activeStat]
-							end
-							if dataSource and dataSource[wIdx] then
-								local val = dataSource[wIdx]
-								tooltipLines[#tooltipLines + 1] = {
-									name = info.name,
-									value = FormatSI(val),
-									r = info.r, g = info.g, b = info.b,
-								}
-							end
-						end
-					end
+			-- The graph is painted from bottom to top. List it in reverse so the
+			-- tooltip reads in the same top-to-bottom order as the visible slices.
+			for i = #graphTeamsInDrawOrder, 1, -1 do
+				local team = graphTeamsInDrawOrder[i]
+				local info = cachedTeamInfo[team.teamID]
+				local value = team.data and team.data[wIdx]
+				if info and value ~= nil then
+					tooltipLines[#tooltipLines + 1] = {
+						name = info.name,
+						value = FormatSI(value),
+						r = info.r, g = info.g, b = info.b,
+					}
 				end
 			end
 
