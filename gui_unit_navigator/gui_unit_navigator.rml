@@ -30,8 +30,11 @@
                          onclick="widget:ClickCard(event)">
                         <div class="card-header" data-if="!card.isEmpty">
                             <div class="unit-strip">
-                                <div data-for="chip : card.unitChips" class="unit-chip" data-class-more-chip="chip.isMore">
-                                    <texture data-if="!chip.isMore" data-attr-src="chip.image" data-attr-alt="chip.label" />
+                                <div data-for="chip : card.unitChips"
+                                     class="unit-chip"
+                                     data-class-hidden="!chip.isVisible"
+                                     data-class-more-chip="chip.isMore">
+                                    <img data-if="chip.hasImage" data-attr-src="chip.image" data-attr-alt="chip.label" />
                                     <span class="chip-count">{{chip.countText}}</span>
                                 </div>
                             </div>
@@ -52,12 +55,14 @@
                                 <div class="terrain-scanlines"></div>
                                 <div data-for="marker : card.markers"
                                      class="unit-marker"
+                                     data-class-hidden="!marker.isVisible"
                                      data-class-group-unit="marker.isGroup"
                                      data-style-left="marker.left"
                                      data-style-top="marker.top"
                                      data-style-opacity="marker.opacity"></div>
                                 <div data-for="target : card.targets"
                                      class="target-marker"
+                                     data-class-hidden="!target.isVisible"
                                      data-class-build-target="target.isBuild"
                                      data-style-left="target.left"
                                      data-style-top="target.top"></div>

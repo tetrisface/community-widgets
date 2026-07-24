@@ -13,6 +13,9 @@ local SPLIT_LABELS = {
 }
 
 local SETTINGS_GLASS_OPACITY = 0.82
+local UNIT_CHIP_ROWS = 6
+local UNIT_MARKER_ROWS = 36
+local TARGET_MARKER_ROWS = 18
 
 local function Percent(value, maximum)
 	if not value or not maximum or maximum <= 0 then return "50%" end
@@ -23,7 +26,7 @@ local function OpacityColor(alpha)
 	return string.format("rgba(8, 20, 32, %d)", math.floor((tonumber(alpha) or 0.82) * 255 + 0.5))
 end
 
-local function UnitChips(card, unitDefName)
+local function UnitChips(card, unitDefName, unitPortraitPath)
 	local counts = {}
 	for _, unitID in ipairs(card.unitIDs or {}) do
 		local defID = card.unitDefIDs and card.unitDefIDs[unitID]
@@ -38,13 +41,36 @@ local function UnitChips(card, unitDefName)
 	local chips = {}
 	for index = 1, math.min(5, #defs) do
 		local entry = defs[index]
+		local image = unitPortraitPath and unitPortraitPath(entry.defID)
 		chips[#chips + 1] = {
-			image = "#" .. tostring(entry.defID),
+			image = image or "",
 			label = tostring(unitDefName and unitDefName(entry.defID) or entry.defID),
 			countText = entry.count > 1 and ("x" .. tostring(entry.count)) or "",
+			hasImage = image ~= nil,
+			isVisible = true,
+			isMore = false,
 		}
 	end
-	if #defs > 5 then chips[#chips + 1] = {image = "", label = "More types", countText = "+" .. tostring(#defs - 5), isMore = true} end
+	if #defs > 5 then
+		chips[#chips + 1] = {
+			image = "",
+			label = "More types",
+			countText = "+" .. tostring(#defs - 5),
+			hasImage = false,
+			isVisible = true,
+			isMore = true,
+		}
+	end
+	for index = #chips + 1, UNIT_CHIP_ROWS do
+		chips[index] = {
+			image = "",
+			label = "",
+			countText = "",
+			hasImage = false,
+			isVisible = false,
+			isMore = false,
+		}
+	end
 	return chips
 end
 
@@ -53,12 +79,22 @@ local function Markers(card, mapSizeX, mapSizeZ, groupAlpha, otherAlpha)
 	local groupSet = {}
 	for _, unitID in ipairs(card.unitIDs or {}) do groupSet[unitID] = true end
 	for _, position in ipairs(card.knownPositions or {}) do
-		if #markers >= 36 then break end
+		if #markers >= UNIT_MARKER_ROWS then break end
 		markers[#markers + 1] = {
 			left = Percent(position.x, mapSizeX),
 			top = Percent(position.z, mapSizeZ),
 			opacity = tostring(groupSet[position.unitID] and groupAlpha or otherAlpha),
 			isGroup = groupSet[position.unitID] == true,
+			isVisible = true,
+		}
+	end
+	for index = #markers + 1, UNIT_MARKER_ROWS do
+		markers[index] = {
+			left = "50%",
+			top = "50%",
+			opacity = "0",
+			isGroup = false,
+			isVisible = false,
 		}
 	end
 	return markers
@@ -67,6 +103,17 @@ end
 local function TargetMarkers(card, mapSizeX, mapSizeZ)
 	local targets = {}
 	local seen = {}
+	local function CompleteRows()
+		for index = #targets + 1, TARGET_MARKER_ROWS do
+			targets[index] = {
+				left = "50%",
+				top = "50%",
+				isBuild = false,
+				isVisible = false,
+			}
+		end
+		return targets
+	end
 	for _, unitID in ipairs(card.unitIDs or {}) do
 		for _, command in ipairs(card.queuesByUnit and card.queuesByUnit[unitID] or {}) do
 			local params = command.params or {}
@@ -80,13 +127,14 @@ local function TargetMarkers(card, mapSizeX, mapSizeZ)
 						left = Percent(x, mapSizeX),
 						top = Percent(z, mapSizeZ),
 						isBuild = tonumber(command.id) and command.id < 0 or false,
+						isVisible = true,
 					}
-					if #targets >= 18 then return targets end
+					if #targets >= TARGET_MARKER_ROWS then return CompleteRows() end
 				end
 			end
 		end
 	end
-	return targets
+	return CompleteRows()
 end
 
 local function SubgroupRows(card, slot, interaction, gridKeyNames)
@@ -129,7 +177,7 @@ function ViewModel.Build(input)
 				isDisabled = card.disabled == true or #(card.unitIDs or {}) == 0,
 				isPinned = card.pinned == true,
 				isFocused = interaction.focusedSlot == slot,
-				unitChips = UnitChips(card, input.unitDefName),
+				unitChips = UnitChips(card, input.unitDefName, input.unitPortraitPath),
 				subgroups = SubgroupRows(card, slot, interaction, config.gridKeyNames or {}),
 				markers = Markers(card, input.mapSizeX, input.mapSizeZ, 1, config.nonGroupUnitOpacity or 0.28),
 				targets = TargetMarkers(card, input.mapSizeX, input.mapSizeZ),
@@ -144,10 +192,10 @@ function ViewModel.Build(input)
 				isDisabled = true,
 				isPinned = false,
 				isFocused = false,
-				unitChips = {},
-				subgroups = {},
-				markers = {},
-				targets = {},
+				unitChips = UnitChips({}, input.unitDefName, input.unitPortraitPath),
+				subgroups = SubgroupRows({}, slot, interaction, config.gridKeyNames or {}),
+				markers = Markers({}, input.mapSizeX, input.mapSizeZ, 1, config.nonGroupUnitOpacity or 0.28),
+				targets = TargetMarkers({}, input.mapSizeX, input.mapSizeZ),
 			}
 		end
 	end
