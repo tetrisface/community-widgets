@@ -28,8 +28,9 @@ body, #unit-navigator-root {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	background-color: #0208114D;
 }
+
+.overlay { background-color: #02081114; }
 
 .overlay-header {
 	width: 78%;
@@ -38,7 +39,7 @@ body, #unit-navigator-root {
 	align-items: center;
 	margin-bottom: 10dp;
 	padding: 8dp 12dp;
-	background-color: #071521E6;
+	background-color: #07152180;
 	border: 1dp #2AB7D9;
 	border-radius: 12dp;
 }
@@ -86,7 +87,7 @@ button:hover { background-color: #20506A; border-color: #56D9F4; }
 	justify-content: space-between;
 	align-content: space-between;
 	padding: 7dp;
-	background-color: #06111CCC;
+	background-color: #06111C33;
 	border: 1dp #183D52;
 	border-radius: 20dp;
 	pointer-events: auto;
@@ -108,7 +109,13 @@ button:hover { background-color: #20506A; border-color: #56D9F4; }
 }
 
 .navigator-card.pinned { border-color: #F6CB62; }
-.navigator-card.empty { background-color: #09141CCC; border-color: #243744; }
+.navigator-card.empty,
+.navigator-card.empty.disabled {
+	opacity: 0;
+	pointer-events: none;
+	background-color: transparent;
+	border-color: transparent;
+}
 .navigator-card.disabled { opacity: 0.54; }
 
 .card-header {
@@ -117,7 +124,7 @@ button:hover { background-color: #20506A; border-color: #56D9F4; }
 	display: flex;
 	align-items: center;
 	padding: 5dp 7dp;
-	background-color: #102A3ADB;
+	background-color: #102A3A73;
 	border-bottom: 1dp #27546B;
 }
 
@@ -142,10 +149,9 @@ button:hover { background-color: #20506A; border-color: #56D9F4; }
 .card-key { font-size: 16dp; padding: 4dp 9dp; }
 
 .card-body { height: 83%; display: flex; }
-.tactical-view { position: relative; width: 70%; height: 100%; overflow: hidden; background-color: #07131B; }
+.tactical-view { position: relative; width: 70%; height: 100%; overflow: hidden; background-color: #07131B40; }
 .terrain { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-.terrain-scanlines { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-color: #0A283533; border: 1dp #1B536B; }
-.terrain-label { position: absolute; left: 6dp; bottom: 4dp; color: #7FDCEF; font-size: 8dp; letter-spacing: 1dp; }
+.terrain-scanlines { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-color: #0A28351F; border: 1dp #1B536B; }
 .unit-marker {
 	position: absolute;
 	width: 5dp;
@@ -174,7 +180,7 @@ button:hover { background-color: #20506A; border-color: #56D9F4; }
 	display: flex;
 	flex-wrap: wrap;
 	align-content: stretch;
-	background-color: #091A25E6;
+	background-color: #091A2552;
 	border-left: 1dp #27546B;
 }
 .subgroup-tile {
@@ -186,23 +192,23 @@ button:hover { background-color: #20506A; border-color: #56D9F4; }
 	align-items: center;
 	justify-content: center;
 	border: 1dp #1F4558;
-	background-color: #102A38CC;
+	background-color: #102A3866;
 	overflow: hidden;
 }
-.subgroup-tile:hover, .subgroup-tile.focused { background-color: #17485D; border-color: #62E4FF; }
-.subgroup-tile.more { background-color: #202E45; }
-.subgroup-tile.skipped { background-color: #4A2833; border-color: #C56B80; }
+.subgroup-tile:hover, .subgroup-tile.focused { background-color: #17485DA6; border-color: #62E4FF; }
+.subgroup-tile.more { background-color: #202E4580; }
+.subgroup-tile.skipped { background-color: #4A283380; border-color: #C56B80; }
 .subgroup-key { position: absolute; left: 3dp; top: 3dp; font-size: 8dp; padding: 1dp 4dp; }
 .subgroup-image { width: 34dp; height: 34dp; border-radius: 4dp; }
 .subgroup-icon { color: #70DDF3; font-size: 11dp; font-weight: bold; }
 .subgroup-label { width: 90%; text-align: center; font-size: 8dp; color: #D8EEF6; white-space: nowrap; overflow: hidden; }
 .subgroup-count { position: absolute; right: 3dp; bottom: 2dp; color: #8EB0BE; font-size: 8dp; }
-.footer-hint { margin-top: 8dp; padding: 5dp 12dp; border-radius: 8dp; background-color: #06131CCC; color: #8EADBA; font-size: 11dp; }
+.footer-hint { margin-top: 8dp; padding: 5dp 12dp; border-radius: 8dp; background-color: #06131C66; color: #8EADBA; font-size: 11dp; }
 
 .settings-backdrop { background-color: #02060AD9; }
 .settings-panel {
-	width: 74%;
-	height: 82%;
+	width: 60%;
+	height: 66%;
 	border: 1dp #42BBD7;
 	border-radius: 18dp;
 	display: flex;

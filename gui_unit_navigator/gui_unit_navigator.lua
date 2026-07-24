@@ -495,7 +495,7 @@ end
 
 function widget:GetConfigData()
 	return {
-		version = 3,
+		version = Config.Version(),
 		onboardingComplete = state.onboardingComplete,
 		rapidStartTimestamps = Config.Copy(state.rapidStartTimestamps),
 		config = Config.Copy(config),
@@ -503,7 +503,9 @@ function widget:GetConfigData()
 end
 
 function widget:SetConfigData(data)
-	config = Config.Normalize(type(data) == "table" and (data.config or data) or nil)
+	local saved = type(data) == "table" and (data.config or data) or nil
+	local version = type(data) == "table" and data.version or nil
+	config = Config.FromSaved(saved, version)
 	state.onboardingComplete = type(data) == "table" and data.onboardingComplete == true
 	state.rapidStartTimestamps = type(data) == "table" and Config.Copy(data.rapidStartTimestamps or {}) or {}
 	state.settingsNotice = nil

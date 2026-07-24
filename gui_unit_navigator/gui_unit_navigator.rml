@@ -28,7 +28,7 @@
                          data-style-background-color="glassColor"
                          onmouseover="widget:HoverCard(event)"
                          onclick="widget:ClickCard(event)">
-                        <div class="card-header">
+                        <div class="card-header" data-if="!card.isEmpty">
                             <div class="unit-strip">
                                 <div data-for="chip : card.unitChips" class="unit-chip" data-class-more-chip="chip.isMore">
                                     <texture data-if="!chip.isMore" data-attr-src="chip.image" data-attr-alt="chip.label" />
@@ -46,7 +46,7 @@
                             <span class="card-key">{{card.keyLabel}}</span>
                         </div>
 
-                        <div class="card-body">
+                        <div class="card-body" data-if="!card.isEmpty">
                             <div class="tactical-view">
                                 <texture class="terrain" src="$minimap" data-style-opacity="terrainOpacity" />
                                 <div class="terrain-scanlines"></div>
@@ -61,7 +61,6 @@
                                      data-class-build-target="target.isBuild"
                                      data-style-left="target.left"
                                      data-style-top="target.top"></div>
-                                <div class="terrain-label">LIVE TACTICAL</div>
                             </div>
 
                             <div class="subgroup-grid">
@@ -89,7 +88,7 @@
             </div>
 
             <div id="unit-navigator-settings" class="settings-backdrop" data-class-hidden="!settingsVisible" onkeydowncapture="widget:CaptureRmlKey(event)" onkeyupcapture="widget:ReleaseRmlKey(event)">
-                <div class="settings-panel" data-style-background-color="glassColor">
+                <div class="settings-panel" data-style-background-color="settingsGlassColor">
                     <div class="settings-header">
                         <div>
                             <div class="eyebrow">UNIT NAVIGATOR</div>

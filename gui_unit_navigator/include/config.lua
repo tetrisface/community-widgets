@@ -1,5 +1,11 @@
 local Config = {}
 
+local CURRENT_VERSION = 5
+local GLASS_DEFAULT_MIGRATION_VERSION = 4
+local TERRAIN_DEFAULT_MIGRATION_VERSION = 5
+local LEGACY_GLASS_OPACITY = 0.82
+local LEGACY_TERRAIN_OPACITY = 0.72
+
 local DEFAULTS = {
 	activationKeyBound = true,
 	activationKeyName = "CapsLock",
@@ -12,8 +18,8 @@ local DEFAULTS = {
 	cameraTransitionSeconds = 0.12,
 	mouseLeaveGuardDp = 24,
 	mouseLeaveDelaySeconds = 0.15,
-	glassOpacity = 0.82,
-	terrainOpacity = 0.72,
+	glassOpacity = 0.45,
+	terrainOpacity = 0.85,
 	nonGroupUnitOpacity = 0.28,
 	formationBatchWindowFrames = 1,
 	buildPositionTolerance = 8,
@@ -92,6 +98,22 @@ function Config.Normalize(saved)
 		end
 	end
 	return result
+end
+
+function Config.FromSaved(saved, version)
+	local migrated = type(saved) == "table" and Copy(saved) or {}
+	local savedVersion = tonumber(version) or 0
+	if savedVersion < GLASS_DEFAULT_MIGRATION_VERSION and tonumber(migrated.glassOpacity) == LEGACY_GLASS_OPACITY then
+		migrated.glassOpacity = DEFAULTS.glassOpacity
+	end
+	if savedVersion < TERRAIN_DEFAULT_MIGRATION_VERSION and tonumber(migrated.terrainOpacity) == LEGACY_TERRAIN_OPACITY then
+		migrated.terrainOpacity = DEFAULTS.terrainOpacity
+	end
+	return Config.Normalize(migrated)
+end
+
+function Config.Version()
+	return CURRENT_VERSION
 end
 
 function Config.WithoutActivation(source)

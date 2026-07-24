@@ -1,6 +1,6 @@
 {
   "id": "gui_unit_navigator",
-  "version": "0.1.4",
+  "version": "0.1.8",
   "display_name": "Unit Navigator",
   "author": "tetrisface",
   "description": "Hold-to-preview 3x2 navigator for recent command recipients, semantic queue subgroups, and match-local pinned groups.",

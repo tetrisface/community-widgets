@@ -12,6 +12,8 @@ local SPLIT_LABELS = {
 	unitdef_semantic = "Unit type -> queue",
 }
 
+local SETTINGS_GLASS_OPACITY = 0.82
+
 local function Percent(value, maximum)
 	if not value or not maximum or maximum <= 0 then return "50%" end
 	return string.format("%.2f%%", math.max(2, math.min(98, value / maximum * 100)))
@@ -135,9 +137,9 @@ function ViewModel.Build(input)
 		else
 			cards[slot] = {
 				slot = slot,
-				keyLabel = (config.gridKeyNames or {})[slot] or "?",
-				taskLabel = "Awaiting command",
-				countText = "Empty",
+				keyLabel = "",
+				taskLabel = "",
+				countText = "",
 				isEmpty = true,
 				isDisabled = true,
 				isPinned = false,
@@ -200,7 +202,8 @@ function ViewModel.Build(input)
 		settingsNoticeVisible = settingsNoticeText ~= "",
 		settingsNoticeText = settingsNoticeText,
 		glassColor = OpacityColor(config.glassOpacity),
-		terrainOpacity = tostring(config.terrainOpacity or 0.72),
+		settingsGlassColor = OpacityColor(SETTINGS_GLASS_OPACITY),
+		terrainOpacity = tostring(config.terrainOpacity or 0.85),
 		hasPinnedRows = #pinnedRows > 0,
 	}
 end
