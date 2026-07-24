@@ -1,10 +1,15 @@
 ===== UNIT NAVIGATOR =====
 
-Unit Navigator is an experimental RmlUi selection overlay for navigating recent command-backed unit groups. Hold CapsLock to open the QWE / ASD grid, hover or press a grid key to preview a group, and release CapsLock to commit. A second grid key commits a semantic subgroup. Left-click commits immediately; Escape, right-click, or leaving the configured guard cancels and restores the previous camera.
+Unit Navigator is an experimental RmlUi selection overlay for navigating recent command-backed unit groups. Hold CapsLock to open the QWE / ASD grid, hover or press grid keys to preview groups, and release CapsLock to commit. Press the focused card's grid key again to enter subgroup mode; the next grid key commits a semantic subgroup. Left-click commits immediately; Escape, right-click, or leaving the configured guard cancels and restores the previous camera.
 
-The activation and traversal keys are remappable in the built-in settings panel. CapsLock is only the initial default because operating systems and keyboard layouts do not all expose its toggle behavior in the same way.
+Activation and traversal keys are remappable in the built-in settings panel. Up to six activation keys can coexist, each using one of two modes:
 
-If an activation binding becomes unusable, restart the widget five times within 20 seconds. Unit Navigator clears only the activation binding and reopens onboarding; choose a new activation key in settings. The rapid-restart history is consumed when recovery triggers, so it cannot repeatedly clear the replacement key.
+- **Hold** opens on key-down and commits when that key is released.
+- **Press + release** opens after the first tap and remains open; tapping that activation key again commits.
+
+CapsLock is only the initial default because operating systems and keyboard layouts do not all expose its toggle behavior in the same way.
+
+If activation bindings become unusable, restart the widget five times within 20 seconds. Unit Navigator clears only the activation bindings and reopens onboarding; add a new activation key in settings. The rapid-restart history is consumed when recovery triggers, so it cannot repeatedly clear the replacement keys.
 
 --- GROUPING ---
 
@@ -18,12 +23,13 @@ Pins are match-local. Their population definition can be a manual set, exact uni
 
 --- COMMAND EVENT IOC ---
 
-The composition root combines ordinary `CommandNotify`, BAR's optional `UnitCommandNotify(unitID, cmdID, params, opts)`, and authoritative `UnitCommand`. It snapshots queues two frames after a dispatch. It has no dependency on formation or custom-command widgets.
+`CommandNotify` is the default human-input admission gate. The observer captures the units selected during that call and accepts subsequent `UnitCommandNotify(unitID, cmdID, params, opts)` and authoritative `UnitCommand` events only when the unit belonged to that captured selection and the command matches. Standalone unit-command events from automation widgets are ignored. The observer snapshots queues two frames after an admitted dispatch and has no dependency on formation or custom-command widgets.
 
-Producers that already have a high-level dispatch boundary may optionally call:
+Producers that already have a high-level human-input dispatch boundary may optionally call:
 
 ```
 WG.UnitNavigator.RecordBatch({
+  humanIssued = true,
   batchID = "optional-stable-id",
   semanticKind = "formation",
   selectedUnitIDs = {...},
@@ -33,7 +39,7 @@ WG.UnitNavigator.RecordBatch({
 })
 ```
 
-Only currently owned recipient units are admitted. Producers remain optional; this API enriches grouping but is not needed for fallback observation.
+`humanIssued = true` is an explicit trust assertion by the adapter, not an inference from the resulting unit commands. Only the supplied, currently owned recipient units are admitted; queue changes do not expand a producer batch. Automation widgets must not call this seam. Producers remain optional and should use it only when a custom human command cannot pass through the ordinary `CommandNotify` path.
 
 --- CURRENT VERTICAL-SLICE LIMIT ---
 

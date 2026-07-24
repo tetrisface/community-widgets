@@ -21,6 +21,31 @@ store:RecordRecent(Card("two updated", {2}))
 T.equals(store:Slots()[1].taskLabel, "two updated")
 T.equals(store:Slots()[1].id, originalID, "dedupe replaced card identity")
 
+local recipientStore = GroupStore.New({semantic = semantic})
+local firstRecipientCard = recipientStore:RecordRecent({
+	taskLabel = "commander from mixed selection",
+	unitIDs = {1},
+	selectedUnitIDs = {1, 2},
+})
+local updatedRecipientCard = recipientStore:RecordRecent({
+	taskLabel = "commander from other selection",
+	unitIDs = {1},
+	selectedUnitIDs = {1, 3},
+})
+T.equals(updatedRecipientCard.id, firstRecipientCard.id, "actual recipients did not define card identity")
+T.equals(recipientStore:Slots()[1].taskLabel, "commander from other selection")
+T.equals(recipientStore:Slots()[2], nil, "different issued selections duplicated one recipient group")
+
+local staleStore = GroupStore.New({semantic = semantic})
+staleStore:RecordRecent(Card("commander and first squad", {1, 2}))
+staleStore:RecordRecent(Card("commander and second squad", {1, 3}))
+local staleSlots = staleStore:Slots()
+staleSlots[1].unitIDs = {1}
+staleSlots[2].unitIDs = {1}
+staleStore:Reconcile()
+T.equals(staleStore:Slots()[1].taskLabel, "commander and second squad")
+T.equals(staleStore:Slots()[2], nil, "filtered populations left duplicate effective groups")
+
 T.truthy(store:Pin(2))
 local pinned = store:Slots()[2]
 store:RecordRecent(Card("four", {4}))

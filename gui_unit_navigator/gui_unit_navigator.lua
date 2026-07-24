@@ -23,6 +23,7 @@ local RML_PATH = WIDGET_PATH .. "gui_unit_navigator.rml"
 local MODEL_NAME = "unit_navigator_model"
 local ROOT_ID = "unit-navigator-root"
 local GRID_ID = "unit-navigator-grid-shell"
+local HEADER_ID = "unit-navigator-overlay-header"
 local SETTINGS_ID = "unit-navigator-settings"
 local REFRESH_VISIBLE_SECONDS = 0.15
 local REFRESH_BACKGROUND_SECONDS = 1
@@ -33,7 +34,7 @@ local RmlKeyMapper = VFS.Include(INCLUDE_PATH .. "rml_key_mapper.lua")
 local RAPID_RESTART_THRESHOLD = RestartGuard.DEFAULT_THRESHOLD
 local RAPID_RESTART_WINDOW_SECONDS = RestartGuard.DEFAULT_WINDOW_SECONDS
 local ACTIVATION_RECOVERY_NOTICE = string.format(
-	"Activation shortcut cleared after %d rapid restarts within %d seconds. Choose a new key; onboarding will reopen until one is set.",
+	"Activation shortcuts cleared after %d rapid restarts within %d seconds. Add a new key; onboarding will reopen until one is set.",
 	RAPID_RESTART_THRESHOLD,
 	RAPID_RESTART_WINDOW_SECONDS
 )
@@ -43,6 +44,7 @@ local CommandObserver = VFS.Include(INCLUDE_PATH .. "command_observer.lua")
 local InteractionController = VFS.Include(INCLUDE_PATH .. "interaction_controller.lua")
 local CameraAdapter = VFS.Include(INCLUDE_PATH .. "camera_adapter.lua")
 local ViewModel = VFS.Include(INCLUDE_PATH .. "view_model.lua")
+local ActivationController = VFS.Include(INCLUDE_PATH .. "activation_controller.lua")
 
 local config = Config.Defaults()
 local state = {
@@ -54,6 +56,7 @@ local state = {
 	observer = nil,
 	interaction = nil,
 	camera = nil,
+	activation = nil,
 	elapsedSeconds = 0,
 	refreshElapsed = 0,
 	refreshRequested = true,
@@ -179,9 +182,12 @@ local function ResolveNamedKeyCode(name, fallback)
 end
 
 local function ResolveDefaultKeyCodes()
-	if config.activationKeyBound and config.activationKeyName == "CapsLock" then
-		config.activationKeyCode = ResolveNamedKeyCode(config.activationKeyName, config.activationKeyCode)
+	for _, binding in ipairs(config.activationBindings or {}) do
+		if binding.keyName == "CapsLock" then
+			binding.keyCode = ResolveNamedKeyCode(binding.keyName, binding.keyCode)
+		end
 	end
+	config = Config.Normalize(config)
 	if config.cancelKeyName == "Escape" then
 		config.cancelKeyCode = ResolveNamedKeyCode(config.cancelKeyName, config.cancelKeyCode)
 	end
@@ -256,11 +262,15 @@ local RefreshCards
 
 local function ModelInput()
 	local slots = state.store and state.store:Slots() or {}
+	local activeBinding = state.activation and state.activation:ActiveBinding()
 	return {
 		config = config,
 		slots = slots,
 		pinnedCards = state.store and state.store:PinnedCards() or {},
 		interaction = state.interaction,
+		activeActivationKeyLabel = activeBinding and activeBinding.keyName,
+		activeActivationMode = activeBinding and activeBinding.mode,
+		activationBindingLimit = Config.MaximumActivationBindings(),
 		unitDefName = UnitDefName,
 		unitPortraitPath = UnitPortraitPath,
 		mapSizeX = Game and Game.mapSizeX or 1,
@@ -350,6 +360,7 @@ RefreshCards = function()
 		card.knownPositions = knownPositions
 		state.store:BuildSubgroups(card, config)
 	end
+	state.store:Reconcile()
 	state.refreshRequested = false
 	ApplyModel()
 end
@@ -385,19 +396,31 @@ local function InstallController()
 			ApplyModel()
 		end,
 		onCommit = function(unitIDs)
+			if state.activation then state.activation:Reset() end
 			SelectOwnedUnits(unitIDs)
 			state.camera:Commit()
 			ApplyModel()
 		end,
 		onCancel = function()
+			if state.activation then state.activation:Reset() end
 			state.camera:Restore(config.cameraTransitionSeconds)
 			ApplyModel()
 		end,
 		onSettings = function(open)
+			if state.activation then state.activation:Reset() end
 			if open then state.camera:Restore(config.cameraTransitionSeconds) end
 			ApplyModel()
 		end,
 		onChange = function() ApplyModel() end,
+	})
+end
+
+local function InstallActivationController()
+	state.activation = ActivationController.New({
+		findBinding = function(keyCode) return Config.FindActivation(config, keyCode) end,
+		isOpen = function() return state.interaction and state.interaction.active == true end,
+		onOpen = function() return state.interaction and state.interaction:Open() or false end,
+		onCommit = function() return state.interaction and state.interaction:ReleaseActivation() or false end,
 	})
 end
 
@@ -409,7 +432,6 @@ local function OnObservedBatch(event)
 		unitIDs = event.recipientUnitIDs,
 		skippedUnitIDs = event.skippedUnitIDs,
 		selectedUnitIDs = selectedUnitIDs,
-		dedupeKey = state.store.Key(selectedUnitIDs),
 		taskLabel = DescribeCommand(event),
 		queuesByUnit = event.queuesByUnit,
 		commandContextByUnit = event.commandContextByUnit,
@@ -451,6 +473,7 @@ local function ReleaseResources()
 	if WG.UnitNavigator then WG.UnitNavigator = nil end
 	state.context = nil
 	state.interaction = nil
+	state.activation = nil
 	state.observer = nil
 	state.camera = nil
 end
@@ -494,6 +517,7 @@ function widget:Initialize()
 	})
 	state.store = GroupStore.New({semantic = state.semantic, unitDefName = UnitDefName, slotCount = 6})
 	InstallController()
+	InstallActivationController()
 	InstallObserver()
 
 	state.context = SafeValue(RmlUi.GetContext, "shared")
@@ -533,7 +557,7 @@ function widget:SetConfigData(data)
 	state.onboardingComplete = type(data) == "table" and data.onboardingComplete == true
 	state.rapidStartTimestamps = type(data) == "table" and Config.Copy(data.rapidStartTimestamps or {}) or {}
 	state.settingsNotice = nil
-	if not config.activationKeyBound then
+	if not Config.HasActivation(config) then
 		state.onboardingComplete = false
 		state.settingsNotice = ACTIVATION_RECOVERY_NOTICE
 	end
@@ -568,10 +592,23 @@ local function CaptureKey(keyCode, label)
 	keyCode = ValidKeyCode(keyCode)
 	if not keyCode then return false end
 	local name = KeyName(keyCode, label)
-	if target == "activation" then
-		config.activationKeyBound = true
-		config.activationKeyCode = keyCode
-		config.activationKeyName = name
+	if target == "activation" or target == "activation_add" or string.match(target, "^activation%d+$") then
+		local index
+		if target == "activation_add" then
+			index = #(config.activationBindings or {}) + 1
+		elseif target == "activation" then
+			index = 1
+		else
+			index = tonumber(string.match(target, "^activation(%d+)$"))
+		end
+		local existing = config.activationBindings and config.activationBindings[index]
+		local updated
+		config, updated = Config.SetActivationBinding(config, index, {
+			keyCode = keyCode,
+			keyName = name,
+			mode = existing and existing.mode or "hold",
+		})
+		if not updated then return false end
 		state.settingsNotice = nil
 	elseif target == "cancel" then
 		config.cancelKeyCode = keyCode
@@ -625,21 +662,21 @@ local function CloseSettings()
 	state.captureTarget = nil
 	state.captureTargetLabel = nil
 	DisownShortcutText()
-	state.onboardingComplete = config.activationKeyBound == true
+	state.onboardingComplete = Config.HasActivation(config)
 	return true
 end
 
 function widget:KeyPress(keyCode, mods, isRepeat, label)
 	if state.captureTarget then return CaptureKey(keyCode, label) end
 	if state.interaction.settingsOpen and keyCode == config.cancelKeyCode then return CloseSettings() end
-	if config.activationKeyBound and keyCode == config.activationKeyCode then
-		if not isRepeat and not state.interaction.settingsOpen then state.interaction:Open() end
-		return true
-	end
+	if state.activation and state.activation:KeyPress(keyCode, isRepeat) then return true end
 	if not state.interaction.active then return false end
 	if keyCode == config.cancelKeyCode then return state.interaction:Cancel("escape") end
 	local index = GridKeyIndex(keyCode)
-	if index and not isRepeat then return state.interaction:PressGrid(index) end
+	if index then
+		if not isRepeat then state.interaction:PressGrid(index) end
+		return true
+	end
 	return false
 end
 
@@ -648,7 +685,7 @@ function widget:KeyRelease(keyCode)
 		DisownShortcutText()
 		return true
 	end
-	if config.activationKeyBound and keyCode == config.activationKeyCode then return state.interaction:ReleaseActivation() end
+	if state.activation and state.activation:KeyRelease(keyCode) then return true end
 	return false
 end
 
@@ -657,21 +694,31 @@ local function ElementBounds(element)
 	return element.absolute_left or 0, element.absolute_top or 0, element.offset_width or 0, element.offset_height or 0
 end
 
-local function MouseInside(element, guard)
-	local left, top, width, height = ElementBounds(element)
-	if not left or width <= 0 or height <= 0 then return true end
+local function MouseInsideCombinedBounds(elements, guard)
+	local minimumLeft, minimumTop, maximumRight, maximumBottom
+	for _, element in ipairs(elements or {}) do
+		local left, top, width, height = ElementBounds(element)
+		if left and width > 0 and height > 0 then
+			minimumLeft = minimumLeft and math.min(minimumLeft, left) or left
+			minimumTop = minimumTop and math.min(minimumTop, top) or top
+			maximumRight = maximumRight and math.max(maximumRight, left + width) or (left + width)
+			maximumBottom = maximumBottom and math.max(maximumBottom, top + height) or (top + height)
+		end
+	end
+	if not minimumLeft then return true end
 	local mouseX, mouseY = SafeCall(Spring.GetMouseState)
 	local _, viewHeight = CurrentViewGeometry()
 	local topDownY = viewHeight - (mouseY or 0)
 	guard = tonumber(guard) or 0
-	return mouseX >= left - guard and mouseX <= left + width + guard
-		and topDownY >= top - guard and topDownY <= top + height + guard
+	return mouseX >= minimumLeft - guard and mouseX <= maximumRight + guard
+		and topDownY >= minimumTop - guard and topDownY <= maximumBottom + guard
 end
 
 local function UpdateMouseLeave()
 	if not state.interaction.active or not state.document then return end
 	local grid = state.document:GetElementById(GRID_ID)
-	if MouseInside(grid, config.mouseLeaveGuardDp) then
+	local header = state.document:GetElementById(HEADER_ID)
+	if MouseInsideCombinedBounds({header, grid}, config.mouseLeaveGuardDp) then
 		state.interaction:Enter()
 	elseif not state.interaction.leaveDeadline then
 		state.interaction:Leave(state.elapsedSeconds, config.mouseLeaveDelaySeconds)
@@ -764,6 +811,30 @@ function widget:BeginShortcutCapture(event)
 	state.captureTargetLabel = tostring(EventAttribute(event, "data-label") or state.captureTarget)
 	OwnShortcutText()
 	ApplyModel()
+end
+
+function widget:CycleActivationMode(event)
+	local index = tonumber(EventAttribute(event, "data-index"))
+	local binding = index and config.activationBindings[index]
+	if not binding then return false end
+	local candidate = Config.Copy(binding)
+	candidate.mode = candidate.mode == "hold" and "press_release" or "hold"
+	local updated
+	config, updated = Config.SetActivationBinding(config, index, candidate)
+	if updated then ApplyModel() end
+	return updated
+end
+
+function widget:RemoveActivationBinding(event)
+	local updated
+	config, updated = Config.RemoveActivationBinding(config, EventAttribute(event, "data-index"))
+	if not updated then return false end
+	if not Config.HasActivation(config) then
+		state.onboardingComplete = false
+		state.settingsNotice = "Add at least one activation key before closing onboarding."
+	end
+	ApplyModel()
+	return true
 end
 
 local SETTING_STEPS = {
@@ -868,6 +939,7 @@ function widget:RestoreDefaults()
 	state.captureTarget = nil
 	state.captureTargetLabel = nil
 	state.settingsNotice = nil
+	if state.activation then state.activation:Reset() end
 	DisownShortcutText()
 	InstallObserver()
 	state.refreshRequested = true

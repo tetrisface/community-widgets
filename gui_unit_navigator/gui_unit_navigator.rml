@@ -6,10 +6,13 @@
     <body id="unit-navigator-body">
         <div id="unit-navigator-root" data-model="unit_navigator_model">
             <div id="unit-navigator-overlay" class="overlay" data-class-hidden="!overlayVisible">
-                <div class="overlay-header">
+                <div id="unit-navigator-overlay-header" class="overlay-header">
                     <div class="activation-copy">
                         <span class="eyebrow">UNIT NAVIGATOR</span>
-                        <span>Release </span><span class="inline-key">{{activationKeyLabel}}</span><span> to commit</span>
+                        <span data-if="!subgroupMode">{{activationCommitPrefix}}</span>
+                        <span data-if="!subgroupMode" class="inline-key">{{activationKeyLabel}}</span>
+                        <span data-if="!subgroupMode">{{activationCommitSuffix}}</span>
+                        <span data-if="subgroupMode">SUBGROUP MODE · choose Q W E / A S D</span>
                     </div>
                     <div class="header-actions">
                         <span class="hint"><span class="inline-key">{{cancelKeyLabel}}</span> / RMB cancel</span>
@@ -89,7 +92,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="footer-hint">First grid key focuses a card. Second grid key commits a subgroup. Move outside the guard briefly to cancel.</div>
+                <div class="footer-hint">Grid keys move between cards. Press the focused card key again to enter its subgroups. Move outside the guard briefly to cancel.</div>
             </div>
 
             <div id="unit-navigator-settings" class="settings-backdrop" data-class-hidden="!settingsVisible" onkeydowncapture="widget:CaptureRmlKey(event)" onkeyupcapture="widget:ReleaseRmlKey(event)">
@@ -109,9 +112,30 @@
                         <div class="settings-column">
                             <div class="settings-section">
                                 <div class="section-title">Shortcuts</div>
-                                <div class="setting-row">
-                                    <span>Hold to activate / release to commit</span>
-                                    <button data-target="activation" data-label="activation" onclick="widget:BeginShortcutCapture(event)">{{activationKeyLabel}}</button>
+                                <div class="setting-row setting-row-stack">
+                                    <span>Activation keys</span>
+                                    <div class="activation-binding-list">
+                                        <div data-for="binding : activationBindingRows"
+                                             class="activation-binding-row"
+                                             data-class-hidden="!binding.isVisible">
+                                            <button class="activation-key-button"
+                                                    data-attr-data-target="binding.captureTarget"
+                                                    data-attr-data-label="binding.captureLabel"
+                                                    onclick="widget:BeginShortcutCapture(event)">{{binding.keyLabel}}</button>
+                                            <button class="activation-mode-button"
+                                                    data-attr-data-index="binding.index"
+                                                    onclick="widget:CycleActivationMode(event)">{{binding.modeLabel}}</button>
+                                            <button class="activation-remove-button"
+                                                    data-attr-data-index="binding.index"
+                                                    onclick="widget:RemoveActivationBinding(event)">REMOVE</button>
+                                        </div>
+                                        <button class="add-activation-button"
+                                                data-class-hidden="!canAddActivationBinding"
+                                                data-target="activation_add"
+                                                data-label="new activation key"
+                                                onclick="widget:BeginShortcutCapture(event)">ADD KEY</button>
+                                    </div>
+                                    <span class="setting-help">Hold opens on key-down and commits on release. Press + release opens on the first tap and commits on the next tap.</span>
                                 </div>
                                 <div class="setting-row">
                                     <span>Cancel</span>
@@ -178,7 +202,7 @@
                     </div>
 
                     <div class="settings-footer">
-                        <span>Producer seam: WG.UnitNavigator.RecordBatch(event). No formation-widget dependency.</span>
+                        <span>Human gate: CommandNotify selection. Trusted adapters may use RecordBatch({humanIssued=true, ...}).</span>
                         <button onclick="widget:RestoreDefaults(event)">RESTORE DEFAULTS</button>
                     </div>
                 </div>
