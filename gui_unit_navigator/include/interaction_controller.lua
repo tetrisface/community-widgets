@@ -90,15 +90,18 @@ function InteractionController.New(options)
 		index = tonumber(index)
 		if not self.active or not index or index < 1 or index > 6 then return false end
 		if self.keyboardDepth == 0 or not self.focusedSlot then
-			local focused = self:FocusCard(index, true)
-			if focused then self.keyboardDepth = 1 end
-			return focused
+			return self:FocusCard(index, true)
+		end
+		if self.keyboardDepth == 1 then
+			if index ~= self.focusedSlot then return self:FocusCard(index, true) end
+			self.keyboardDepth = 2
+			self.focusedSubgroupIndex = nil
+			if options.onChange then options.onChange() end
+			return true
 		end
 		local card = Card(self.focusedSlot)
 		local subgroup = PagedSubgroups(card)[index]
-		if not subgroup then
-			return self:FocusCard(index, true)
-		end
+		if not subgroup then return false end
 		if subgroup.isMore then
 			self.subgroupPage = subgroup.targetPage or (self.subgroupPage + 1)
 			self.focusedSubgroupIndex = nil

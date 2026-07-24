@@ -53,7 +53,7 @@ local function InstallEnvironment(options)
 		SetCameraTarget = function(x, y, z, duration) environment.cameraTarget = {x, y, z, duration} end,
 		SelectUnitArray = function(units) environment.selectedByWidget = units end,
 		GetViewGeometry = function() return 1920, 1080 end,
-		GetMouseState = function() return 960, 540 end,
+		GetMouseState = function() return environment.mouseX or 960, environment.mouseY or 540 end,
 		GetKeyCode = function(name)
 			environment.lastRequestedKeyName = name
 			if options.getKeyCode then return options.getKeyCode(name) end
@@ -81,6 +81,7 @@ local function InstallEnvironment(options)
 	}
 
 	local grid = {absolute_left = 220, absolute_top = 110, offset_width = 1480, offset_height = 790}
+	local header = {absolute_left = 220, absolute_top = 40, offset_width = 1480, offset_height = 54}
 	local settings = {absolute_left = 260, absolute_top = 100, offset_width = 1400, offset_height = 850}
 	local rootElement = {absolute_left = 0, absolute_top = 0, offset_width = 1920, offset_height = 1080}
 	local document = {
@@ -96,6 +97,7 @@ local function InstallEnvironment(options)
 		Close = function(self) self.closed = true end,
 		GetElementById = function(_, id)
 			if id == "unit-navigator-grid-shell" then return grid end
+			if id == "unit-navigator-overlay-header" then return header end
 			if id == "unit-navigator-settings" then return settings end
 			if id == "unit-navigator-root" then return rootElement end
 			return nil
@@ -149,6 +151,8 @@ T.falsy(environment.document.hidden)
 T.truthy(environment.model.settingsVisible, "first run did not open settings")
 T.truthy(_G.WG.UnitNavigator)
 T.equals(loadedWidget:GetConfigData().config.activationKeyCode, 301)
+T.equals(#loadedWidget:GetConfigData().config.activationBindings, 1)
+T.equals(loadedWidget:GetConfigData().config.activationBindings[1].mode, "hold")
 T.equals(loadedWidget:GetConfigData().config.glassOpacity, 0.45)
 T.equals(loadedWidget:GetConfigData().config.terrainOpacity, 0.85)
 T.equals(environment.model.glassColor, "rgba(8, 20, 32, 115)")
@@ -191,9 +195,29 @@ T.equals(#cardModel.targets, 18)
 T.truthy(cardModel.targets[1].isVisible)
 T.falsy(cardModel.targets[2].isVisible)
 
+T.truthy(_G.WG.UnitNavigator.RecordBatch({
+	humanIssued = true,
+	batchID = "same-recipients-new-selection",
+	selectedUnitIDs = {101, 102},
+	recipientUnitIDs = {101, 102},
+	commandID = 10,
+}))
+environment.frame = 14
+loadedWidget:Update(0.1)
+local recipientDedupedSlots = _G.WG.UnitNavigator.GetSlots()
+T.arrayEquals(recipientDedupedSlots[1].unitIDs, {101, 102})
+T.equals(recipientDedupedSlots[2], nil, "selection metadata duplicated an existing recipient group")
+
 T.truthy(loadedWidget:KeyPress(301, {}, false, "capslock"))
 T.truthy(environment.document.shown)
 T.truthy(loadedWidget:IsAbove(960, 540), "active grid did not claim its visible area")
+environment.mouseX = 1600
+environment.mouseY = 1020
+loadedWidget:Update(0.2)
+loadedWidget:Update(0.16)
+T.truthy(environment.model.overlayVisible, "moving from the grid to Settings cancelled the overlay")
+environment.mouseX = 960
+environment.mouseY = 540
 T.truthy(loadedWidget:KeyPress(113, {}, false, "q"))
 T.truthy(environment.cameraTarget, "first grid key did not preview camera")
 T.truthy(loadedWidget:KeyRelease(301))
@@ -201,9 +225,11 @@ T.arrayEquals(environment.selectedByWidget, {101, 102})
 
 loadedWidget:KeyPress(301, {}, false, "capslock")
 loadedWidget:KeyPress(113, {}, false, "q")
+T.truthy(loadedWidget:KeyPress(119, {}, false, "w"), "active grid shortcut leaked to BAR")
+T.truthy(loadedWidget:KeyPress(119, {}, true, "w"), "repeated active grid shortcut leaked to BAR")
 T.truthy(loadedWidget:MousePress(10, 10, 3))
 T.truthy(environment.restoredCamera, "cancel did not restore original camera")
-T.falsy(loadedWidget:KeyRelease(301), "release selected after right-click cancel")
+T.truthy(loadedWidget:KeyRelease(301), "cancelled activation release leaked to BAR")
 
 T.truthy(_G.WG.UnitNavigator.OpenSettings())
 T.truthy(environment.model.settingsVisible)
@@ -212,7 +238,7 @@ T.truthy(environment.model.settingsVisible, "Caps release closed persistent sett
 loadedWidget:CloseSettings()
 
 local configData = loadedWidget:GetConfigData()
-T.equals(configData.version, 5)
+T.equals(configData.version, 6)
 T.truthy(configData.onboardingComplete)
 T.equals(configData.config.activationKeyName, "CapsLock")
 T.equals(configData.config.activationKeyCode, 301)
@@ -269,6 +295,57 @@ remappedWidget:SetConfigData({
 T.truthy(remappedWidget:Initialize())
 T.equals(remappedWidget:GetConfigData().config.activationKeyCode, 289)
 remappedWidget:Shutdown()
+
+local multiWidget, multiEnvironment = LoadWidget({keysyms = false})
+multiWidget:SetConfigData({
+	version = 6,
+	onboardingComplete = true,
+	config = {
+		activationBindings = {
+			{keyName = "F8", keyCode = 289, mode = "hold"},
+			{keyName = "F9", keyCode = 290, mode = "press_release"},
+		},
+	},
+})
+T.truthy(multiWidget:Initialize())
+T.equals(#multiEnvironment.model.activationBindingRows, 6)
+T.equals(multiEnvironment.model.activationBindingRows[1].modeLabel, "HOLD")
+T.equals(multiEnvironment.model.activationBindingRows[2].modeLabel, "PRESS + RELEASE")
+T.truthy(multiWidget:KeyPress(290, {}, false, "f9"))
+T.falsy(multiEnvironment.model.overlayVisible, "press-release binding opened before key-up")
+T.truthy(multiWidget:KeyRelease(290))
+T.truthy(multiEnvironment.model.overlayVisible, "press-release binding did not open on first tap")
+T.equals(multiEnvironment.model.activationCommitPrefix, "Tap ")
+T.truthy(multiWidget:KeyPress(290, {}, false, "f9"))
+T.truthy(multiWidget:KeyRelease(290))
+T.falsy(multiEnvironment.model.overlayVisible, "press-release binding did not close on second tap")
+T.truthy(multiWidget:KeyPress(289, {}, false, "f8"))
+T.truthy(multiEnvironment.model.overlayVisible, "secondary hold binding did not open")
+T.equals(multiEnvironment.model.activationCommitPrefix, "Release ")
+T.truthy(multiWidget:KeyRelease(289))
+T.falsy(multiEnvironment.model.overlayVisible, "secondary hold binding did not close on release")
+T.truthy(_G.WG.UnitNavigator.OpenSettings())
+multiWidget:BeginShortcutCapture({
+	current_element = {
+		GetAttribute = function(_, name)
+			if name == "data-target" then return "activation_add" end
+			if name == "data-label" then return "new activation key" end
+			return nil
+		end,
+	},
+})
+T.truthy(multiWidget:KeyPress(291, {}, false, "f10"))
+T.truthy(multiWidget:KeyRelease(291))
+T.equals(#multiWidget:GetConfigData().config.activationBindings, 3)
+T.truthy(multiWidget:CycleActivationMode({
+	current_element = {GetAttribute = function(_, name) return name == "data-index" and "3" or nil end},
+}))
+T.equals(multiWidget:GetConfigData().config.activationBindings[3].mode, "press_release")
+T.truthy(multiWidget:RemoveActivationBinding({
+	current_element = {GetAttribute = function(_, name) return name == "data-index" and "2" or nil end},
+}))
+T.equals(#multiWidget:GetConfigData().config.activationBindings, 2)
+multiWidget:Shutdown()
 
 local rapidConfig = {
 	version = 3,
@@ -420,6 +497,7 @@ for _, path in ipairs({
 	"include/group_store.lua",
 	"include/command_observer.lua",
 	"include/interaction_controller.lua",
+	"include/activation_controller.lua",
 	"include/camera_adapter.lua",
 	"include/view_model.lua",
 }) do
@@ -430,6 +508,7 @@ for _, path in ipairs({
 end
 
 local rmlSource = T.read(root .. "gui_unit_navigator.rml")
+T.contains(rmlSource, 'id="unit-navigator-overlay-header"', "overlay header has no mouse-leave boundary")
 T.contains(rmlSource, 'onkeydowncapture="widget:CaptureRmlKey(event)"', "settings do not route focused key-down events")
 T.contains(rmlSource, 'onkeyupcapture="widget:ReleaseRmlKey(event)"', "settings do not route focused key-up events")
 T.contains(rmlSource, 'class="navigator-card"', "navigator cards are missing")
@@ -443,6 +522,12 @@ T.contains(rmlSource, 'data-if="chip.hasImage"', "empty unit-chip rows still req
 T.contains(rmlSource, '<img data-if="chip.hasImage"', "unit portraits do not use the standard RmlUi image element")
 T.contains(rmlSource, 'data-class-hidden="!marker.isVisible"', "unused unit-marker rows remain visible")
 T.contains(rmlSource, 'data-class-hidden="!target.isVisible"', "unused target rows remain visible")
+T.contains(rmlSource, 'data-if="subgroupMode">SUBGROUP MODE', "subgroup keyboard mode is not visible")
+T.contains(rmlSource, "Press the focused card key again", "root-to-subgroup keyboard transition is undocumented")
+T.contains(rmlSource, 'data-for="binding : activationBindingRows"', "settings do not list activation bindings")
+T.contains(rmlSource, 'onclick="widget:CycleActivationMode(event)"', "activation mode cannot be changed")
+T.contains(rmlSource, 'onclick="widget:RemoveActivationBinding(event)"', "activation binding cannot be removed")
+T.contains(rmlSource, 'data-target="activation_add"', "activation binding cannot be added")
 local rcssSource = T.read(root .. "gui_unit_navigator.rcss")
 local function CssRuleContains(selector, declaration)
 	local selectorStart = assert(string.find(rcssSource, selector, 1, true), "missing CSS selector: " .. selector)

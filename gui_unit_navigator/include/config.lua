@@ -1,12 +1,22 @@
 local Config = {}
 
-local CURRENT_VERSION = 5
+local CURRENT_VERSION = 6
 local GLASS_DEFAULT_MIGRATION_VERSION = 4
 local TERRAIN_DEFAULT_MIGRATION_VERSION = 5
 local LEGACY_GLASS_OPACITY = 0.82
 local LEGACY_TERRAIN_OPACITY = 0.72
+local MAXIMUM_ACTIVATION_BINDINGS = 6
+local ACTIVATION_MODE_HOLD = "hold"
+local ACTIVATION_MODE_PRESS_RELEASE = "press_release"
 
 local DEFAULTS = {
+	activationBindings = {{
+		keyName = "CapsLock",
+		keyCode = 301,
+		mode = ACTIVATION_MODE_HOLD,
+	}},
+	-- Retained as derived aliases so existing configs and external readers keep
+	-- working while activationBindings is the canonical representation.
 	activationKeyBound = true,
 	activationKeyName = "CapsLock",
 	activationKeyCode = 301,
@@ -52,6 +62,37 @@ local function KeyCode(value, fallback)
 	return math.floor(value)
 end
 
+local function ActivationMode(value)
+	if value == ACTIVATION_MODE_PRESS_RELEASE then return ACTIVATION_MODE_PRESS_RELEASE end
+	return ACTIVATION_MODE_HOLD
+end
+
+local function ActivationBindings(saved)
+	local bindings = {}
+	local seenCodes = {}
+	for index = 1, math.min(MAXIMUM_ACTIVATION_BINDINGS, #saved) do
+		local candidate = saved[index]
+		local keyCode = type(candidate) == "table" and KeyCode(candidate.keyCode)
+		if keyCode and not seenCodes[keyCode] then
+			seenCodes[keyCode] = true
+			bindings[#bindings + 1] = {
+				keyName = type(candidate.keyName) == "string" and candidate.keyName or tostring(keyCode),
+				keyCode = keyCode,
+				mode = ActivationMode(candidate.mode),
+			}
+		end
+	end
+	return bindings
+end
+
+local function SyncLegacyActivation(result)
+	local primary = result.activationBindings[1]
+	result.activationKeyBound = primary ~= nil
+	result.activationKeyName = primary and primary.keyName or nil
+	result.activationKeyCode = primary and primary.keyCode or nil
+	return result
+end
+
 function Config.Defaults()
 	return Copy(DEFAULTS)
 end
@@ -60,14 +101,18 @@ function Config.Normalize(saved)
 	local result = Config.Defaults()
 	if type(saved) ~= "table" then return result end
 
-	if saved.activationKeyBound == false then
-		result.activationKeyBound = false
-		result.activationKeyName = nil
-		result.activationKeyCode = nil
+	if type(saved.activationBindings) == "table" then
+		result.activationBindings = ActivationBindings(saved.activationBindings)
+	elseif saved.activationKeyBound == false then
+		result.activationBindings = {}
 	else
-		if type(saved.activationKeyName) == "string" then result.activationKeyName = saved.activationKeyName end
-		result.activationKeyCode = KeyCode(saved.activationKeyCode, result.activationKeyCode)
+		result.activationBindings = {{
+			keyName = type(saved.activationKeyName) == "string" and saved.activationKeyName or DEFAULTS.activationKeyName,
+			keyCode = KeyCode(saved.activationKeyCode, DEFAULTS.activationKeyCode),
+			mode = ACTIVATION_MODE_HOLD,
+		}}
 	end
+	SyncLegacyActivation(result)
 	if type(saved.cancelKeyName) == "string" then result.cancelKeyName = saved.cancelKeyName end
 	result.cancelKeyCode = KeyCode(saved.cancelKeyCode, result.cancelKeyCode)
 
@@ -118,10 +163,61 @@ end
 
 function Config.WithoutActivation(source)
 	local result = Config.Normalize(source)
-	result.activationKeyBound = false
-	result.activationKeyName = nil
-	result.activationKeyCode = nil
-	return result
+	result.activationBindings = {}
+	return SyncLegacyActivation(result)
+end
+
+function Config.HasActivation(source)
+	return type(source) == "table"
+		and type(source.activationBindings) == "table"
+		and #source.activationBindings > 0
+end
+
+function Config.FindActivation(source, keyCode)
+	keyCode = KeyCode(keyCode)
+	if not keyCode then return nil end
+	for index, binding in ipairs(source and source.activationBindings or {}) do
+		if binding.keyCode == keyCode then return binding, index end
+	end
+	return nil
+end
+
+function Config.SetActivationBinding(source, index, binding)
+	local result = Config.Normalize(source)
+	index = math.floor(tonumber(index) or (#result.activationBindings + 1))
+	if index < 1 or index > MAXIMUM_ACTIVATION_BINDINGS then return result, false end
+	local keyCode = type(binding) == "table" and KeyCode(binding.keyCode)
+	if not keyCode then return result, false end
+
+	local bindings = Copy(result.activationBindings)
+	if index <= #bindings then table.remove(bindings, index) end
+	for existingIndex = #bindings, 1, -1 do
+		if bindings[existingIndex].keyCode == keyCode then table.remove(bindings, existingIndex) end
+	end
+	index = math.min(index, #bindings + 1)
+	table.insert(bindings, index, {
+		keyName = type(binding.keyName) == "string" and binding.keyName or tostring(keyCode),
+		keyCode = keyCode,
+		mode = ActivationMode(binding.mode),
+	})
+	result.activationBindings = bindings
+	return SyncLegacyActivation(result), true
+end
+
+function Config.RemoveActivationBinding(source, index)
+	local result = Config.Normalize(source)
+	index = math.floor(tonumber(index) or 0)
+	if index < 1 or index > #result.activationBindings then return result, false end
+	table.remove(result.activationBindings, index)
+	return SyncLegacyActivation(result), true
+end
+
+function Config.MaximumActivationBindings()
+	return MAXIMUM_ACTIVATION_BINDINGS
+end
+
+function Config.ActivationModes()
+	return ACTIVATION_MODE_HOLD, ACTIVATION_MODE_PRESS_RELEASE
 end
 
 function Config.Copy(value)

@@ -14,12 +14,6 @@ local function UniqueSorted(values)
 	return result
 end
 
-local function ArrayKey(values)
-	local normalized = UniqueSorted(values)
-	for index = 1, #normalized do normalized[index] = tostring(normalized[index]) end
-	return table.concat(normalized, ",")
-end
-
 local function Copy(value)
 	if type(value) ~= "table" then return value end
 	local result = {}
@@ -65,12 +59,16 @@ function CommandObserver.New(deps, options)
 
 	local function NewBatch(source, selectedUnitIDs, commandID, params, commandOptions, suppliedID)
 		local frame = CurrentFrame()
+		local selected = UniqueSorted(selectedUnitIDs)
+		local selectedSet = {}
+		for _, unitID in ipairs(selected) do selectedSet[unitID] = true end
 		local batch = {
 			id = suppliedID or ("batch-" .. tostring(self.nextBatchID)),
 			frame = frame,
 			deadlineFrame = frame + (options.snapshotDelayFrames or 2),
 			source = source,
-			selectedUnitIDs = UniqueSorted(selectedUnitIDs),
+			selectedUnitIDs = selected,
+			selectedSet = selectedSet,
 			commandID = tonumber(commandID) or commandID,
 			params = Copy(params or {}),
 			options = Copy(commandOptions or {}),
@@ -87,24 +85,13 @@ function CommandObserver.New(deps, options)
 		local window = tonumber(options.formationBatchWindowFrames) or 1
 		for index = #self.pending, 1, -1 do
 			local batch = self.pending[index]
-			local highLevelSource = batch.source == "command_notify" or batch.source == "producer"
-			local producerMatchesRecipient = batch.source ~= "producer" or batch.recipientSet[unitID]
-			if highLevelSource and producerMatchesRecipient and frame - batch.frame <= window and batch.commandID == commandID then
+			local matchesBatch = batch.source == "producer" and batch.recipientSet[unitID]
+				or batch.source == "command_notify" and batch.selectedSet[unitID]
+			if matchesBatch and frame - batch.frame <= window and batch.commandID == commandID then
 				return batch
 			end
 		end
 		return nil
-	end
-
-	local function FindDirect(frame, selectedUnitIDs)
-		local selectionKey = ArrayKey(selectedUnitIDs)
-		for index = #self.pending, 1, -1 do
-			local batch = self.pending[index]
-			if batch.source == "unit_command" and batch.frame == frame and batch.selectionKey == selectionKey then return batch end
-		end
-		local batch = NewBatch("unit_command", selectedUnitIDs, nil, {}, {})
-		batch.selectionKey = selectionKey
-		return batch
 	end
 
 	local function AddRecipient(batch, unitID, context)
@@ -124,8 +111,8 @@ function CommandObserver.New(deps, options)
 	function self:OnUnitCommandNotify(unitID, commandID, params, commandOptions)
 		if not IsOwned(unitID) then return false end
 		local frame = CurrentFrame()
-		local selected = Selection()
-		local batch = FindHighLevel(commandID, frame, unitID) or FindDirect(frame, selected)
+		local batch = FindHighLevel(commandID, frame, unitID)
+		if not batch then return false end
 		batch.commandID = batch.commandID or commandID
 		batch.semanticKind = "formation"
 		batch.deadlineFrame = math.max(batch.deadlineFrame, frame + (options.snapshotDelayFrames or 2))
@@ -141,8 +128,8 @@ function CommandObserver.New(deps, options)
 	function self:OnUnitCommand(unitID, unitDefID, unitTeam, commandID, params, commandOptions, commandTag, playerID, fromSynced, fromLua)
 		if not IsOwned(unitID, unitTeam) then return end
 		local frame = CurrentFrame()
-		local selected = Selection()
-		local batch = FindHighLevel(commandID, frame, unitID) or FindDirect(frame, selected)
+		local batch = FindHighLevel(commandID, frame, unitID)
+		if not batch then return end
 		batch.commandID = batch.commandID or commandID
 		batch.deadlineFrame = math.max(batch.deadlineFrame, frame + (options.snapshotDelayFrames or 2))
 		AddRecipient(batch, unitID, {
@@ -155,6 +142,7 @@ function CommandObserver.New(deps, options)
 
 	function self:RecordBatch(event)
 		if type(event) ~= "table" then return false, "event must be a table" end
+		if event.humanIssued ~= true then return false, "humanIssued=true is required" end
 		if type(event.recipientUnitIDs) ~= "table" then return false, "recipientUnitIDs is required" end
 		if event.commandID ~= nil and type(event.commandID) ~= "number" then return false, "commandID must be numeric" end
 		if event.semanticKind ~= nil and event.semanticKind ~= "formation" then return false, "unsupported semanticKind" end
@@ -195,9 +183,11 @@ function CommandObserver.New(deps, options)
 
 	local function Complete(batch)
 		local queuesByUnit = Snapshot(batch.selectedUnitIDs)
-		for _, unitID in ipairs(batch.selectedUnitIDs) do
-			if not batch.recipientSet[unitID] and QueueChanged(batch.beforeQueues[unitID], queuesByUnit[unitID]) then
-				AddRecipient(batch, unitID)
+		if batch.source == "command_notify" then
+			for _, unitID in ipairs(batch.selectedUnitIDs) do
+				if not batch.recipientSet[unitID] and QueueChanged(batch.beforeQueues[unitID], queuesByUnit[unitID]) then
+					AddRecipient(batch, unitID)
+				end
 			end
 		end
 

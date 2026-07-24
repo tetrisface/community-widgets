@@ -159,6 +159,23 @@ local function SubgroupRows(card, slot, interaction, gridKeyNames)
 	return rows
 end
 
+local function ActivationBindingRows(config, limit)
+	local rows = {}
+	local bindings = config.activationBindings or {}
+	for index = 1, limit do
+		local binding = bindings[index]
+		rows[index] = {
+			index = index,
+			isVisible = binding ~= nil,
+			keyLabel = binding and binding.keyName or "",
+			modeLabel = binding and (binding.mode == "press_release" and "PRESS + RELEASE" or "HOLD") or "",
+			captureTarget = "activation" .. tostring(index),
+			captureLabel = "activation key " .. tostring(index),
+		}
+	end
+	return rows
+end
+
 function ViewModel.Build(input)
 	input = input or {}
 	local config = input.config or {}
@@ -216,12 +233,22 @@ function ViewModel.Build(input)
 
 	local captureText = input.captureTarget and ("Press a key for " .. tostring(input.captureTargetLabel or input.captureTarget)) or ""
 	local settingsNoticeText = tostring(input.settingsNotice or "")
+	local activationBindings = config.activationBindings or {}
+	local primaryActivation = activationBindings[1]
+	local activeActivationLabel = input.activeActivationKeyLabel or (primaryActivation and primaryActivation.keyName) or "SET KEY"
+	local activeActivationMode = input.activeActivationMode or (primaryActivation and primaryActivation.mode) or "hold"
+	local activationBindingLimit = tonumber(input.activationBindingLimit) or 6
 	return {
 		overlayVisible = interaction.active,
 		settingsVisible = interaction.settingsOpen,
+		subgroupMode = interaction.keyboardDepth >= 2,
 		cards = cards,
 		pinnedRows = pinnedRows,
-		activationKeyLabel = config.activationKeyBound == false and "SET KEY" or (config.activationKeyName or "CapsLock"),
+		activationBindingRows = ActivationBindingRows(config, activationBindingLimit),
+		canAddActivationBinding = #activationBindings < activationBindingLimit,
+		activationKeyLabel = activeActivationLabel,
+		activationCommitPrefix = activeActivationMode == "press_release" and "Tap " or "Release ",
+		activationCommitSuffix = activeActivationMode == "press_release" and " again to commit" or " to commit",
 		cancelKeyLabel = config.cancelKeyName or "Escape",
 		gridKeyOne = (config.gridKeyNames or {})[1] or "Q",
 		gridKeyTwo = (config.gridKeyNames or {})[2] or "W",

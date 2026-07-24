@@ -53,13 +53,19 @@ function GroupStore.New(options)
 		nextID = 1,
 	}
 
+	local function EffectiveKey(card)
+		local key = card and Key(card.unitIDs) or ""
+		if card then card.dedupeKey = key end
+		return key
+	end
+
 	local function ExistingByDedupeKey(dedupeKey)
 		for slot = 1, slotCount do
 			local card = self.pinned[slot]
-			if card and card.dedupeKey == dedupeKey then return card, "pinned", slot end
+			if card and EffectiveKey(card) == dedupeKey then return card, "pinned", slot end
 		end
 		for index = 1, #self.mru do
-			if self.mru[index].dedupeKey == dedupeKey then return self.mru[index], "mru", index end
+			if EffectiveKey(self.mru[index]) == dedupeKey then return self.mru[index], "mru", index end
 		end
 		return nil
 	end
@@ -69,7 +75,9 @@ function GroupStore.New(options)
 		card.unitIDs = UniqueSorted(card.unitIDs)
 		card.skippedUnitIDs = UniqueSorted(card.skippedUnitIDs)
 		card.selectedUnitIDs = UniqueSorted(card.selectedUnitIDs)
-		card.dedupeKey = card.dedupeKey or Key(#card.selectedUnitIDs > 0 and card.selectedUnitIDs or card.unitIDs)
+		-- A recent card represents actual command recipients. The issued
+		-- selection also contains skipped units and cannot identify the card.
+		card.dedupeKey = Key(card.unitIDs)
 		card.id = existing and existing.id or card.id or self.nextID
 		if not existing and not card.id then self.nextID = self.nextID + 1 end
 		if not existing and card.id == self.nextID then self.nextID = self.nextID + 1 end
@@ -80,7 +88,7 @@ function GroupStore.New(options)
 	end
 
 	function self:RecordRecent(card)
-		local dedupeKey = card and (card.dedupeKey or Key(#(card.selectedUnitIDs or {}) > 0 and card.selectedUnitIDs or card.unitIDs))
+		local dedupeKey = card and Key(card.unitIDs)
 		if not dedupeKey or dedupeKey == "" then return nil end
 		local existing, location, index = ExistingByDedupeKey(dedupeKey)
 		local prepared = PrepareCard(card, existing)
@@ -94,6 +102,25 @@ function GroupStore.New(options)
 		table.insert(self.mru, 1, prepared)
 		while #self.mru > (options.historyLimit or 24) do self.mru[#self.mru] = nil end
 		return prepared
+	end
+
+	function self:Reconcile()
+		local occupied = {}
+		for slot = 1, slotCount do
+			local card = self.pinned[slot]
+			local key = EffectiveKey(card)
+			if key ~= "" then occupied[key] = true end
+		end
+
+		local unique = {}
+		for _, card in ipairs(self.mru) do
+			local key = EffectiveKey(card)
+			if key ~= "" and not occupied[key] then
+				occupied[key] = true
+				unique[#unique + 1] = card
+			end
+		end
+		self.mru = unique
 	end
 
 	function self:Slots()
