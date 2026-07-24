@@ -138,7 +138,7 @@ button:hover { background-color: #20506A; border-color: #56D9F4; }
 	overflow: hidden;
 	background-color: #08131C;
 }
-.unit-chip texture { width: 100%; height: 100%; }
+.unit-chip img { width: 100%; height: 100%; }
 .chip-count { position: absolute; right: 1dp; bottom: 0; font-size: 9dp; color: #FFFFFF; background-color: #06111CCC; }
 .more-chip { display: flex; align-items: center; justify-content: center; }
 .card-title { width: 35%; flex-direction: column; align-items: flex-start; overflow: hidden; padding-left: 6dp; }

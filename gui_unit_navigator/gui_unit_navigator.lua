@@ -132,6 +132,29 @@ local function UnitDefName(unitDefID)
 	return definition and (definition.translatedHumanName or definition.humanName or definition.name) or tostring(unitDefID or "Unknown")
 end
 
+local function ExistingImagePath(path)
+	if type(path) ~= "string" or path == "" or not VFS or not VFS.FileExists then return nil end
+	local normalized = string.gsub(string.gsub(path, "\\", "/"), "^/+", "")
+	if normalized == "" or not SafeValue(VFS.FileExists, normalized) then return nil end
+	return "/" .. normalized
+end
+
+local function UnitPortraitPath(unitDefID)
+	local definition = UnitDefs and UnitDefs[tonumber(unitDefID)]
+	if not definition then return nil end
+	local buildPic = definition.buildPic or definition.buildpic
+	local resolved = ExistingImagePath(buildPic)
+	if resolved then return resolved end
+	if type(buildPic) == "string" and not string.find(buildPic, "/", 1, true) then
+		resolved = ExistingImagePath("unitpics/" .. buildPic)
+		if resolved then return resolved end
+	end
+	local name = definition.name
+	if type(name) ~= "string" or name == "" then return nil end
+	return ExistingImagePath("unitpics/" .. name .. ".dds")
+		or ExistingImagePath("unitpics/" .. name .. ".png")
+end
+
 local function CurrentFrame()
 	return tonumber(SafeValue(Spring.GetGameFrame)) or 0
 end
@@ -239,6 +262,7 @@ local function ModelInput()
 		pinnedCards = state.store and state.store:PinnedCards() or {},
 		interaction = state.interaction,
 		unitDefName = UnitDefName,
+		unitPortraitPath = UnitPortraitPath,
 		mapSizeX = Game and Game.mapSizeX or 1,
 		mapSizeZ = Game and Game.mapSizeZ or 1,
 		captureTarget = state.captureTarget,

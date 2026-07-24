@@ -62,6 +62,12 @@ local function InstallEnvironment(options)
 		GetKeySymbol = function(code) return tostring(code) end,
 	}
 	_G.VFS = {
+		FileExists = function(path)
+			environment.requestedImagePaths = environment.requestedImagePaths or {}
+			environment.requestedImagePaths[#environment.requestedImagePaths + 1] = path
+			if options.fileExists then return options.fileExists(path) end
+			return path == "unitpics/builder.dds" or path == "unitpics/tank.dds"
+		end,
 		Include = function(path)
 			if string.lower(path) == "luaui/headers/keysym.h.lua" and options.loadKeysymHeader then
 				environment.keysymHeaderLoaded = true
@@ -151,6 +157,10 @@ T.equals(environment.model.terrainOpacity, "0.85")
 T.equals(environment.model.cards[1].taskLabel, "")
 T.equals(environment.model.cards[1].countText, "")
 T.equals(environment.model.cards[1].keyLabel, "")
+T.equals(#environment.model.cards[1].unitChips, 6)
+T.equals(#environment.model.cards[1].subgroups, 6)
+T.equals(#environment.model.cards[1].markers, 36)
+T.equals(#environment.model.cards[1].targets, 18)
 T.truthy(loadedWidget:KeyPress(27, {}, false, "escape"))
 T.truthy(environment.document.hidden)
 T.truthy(loadedWidget:GetConfigData().onboardingComplete)
@@ -167,6 +177,19 @@ loadedWidget:Update(0.1)
 local slot = assert(_G.WG.UnitNavigator.GetSlots()[1])
 T.arrayEquals(slot.unitIDs, {101, 102})
 T.arrayEquals(slot.skippedUnitIDs, {103})
+local cardModel = environment.model.cards[1]
+T.equals(#cardModel.unitChips, 6)
+T.truthy(cardModel.unitChips[1].isVisible)
+T.equals(cardModel.unitChips[1].isMore, false)
+T.truthy(cardModel.unitChips[1].hasImage)
+T.equals(cardModel.unitChips[1].image, "/unitpics/builder.dds")
+T.falsy(cardModel.unitChips[2].isVisible)
+T.equals(#cardModel.markers, 36)
+T.truthy(cardModel.markers[1].isVisible)
+T.falsy(cardModel.markers[4].isVisible)
+T.equals(#cardModel.targets, 18)
+T.truthy(cardModel.targets[1].isVisible)
+T.falsy(cardModel.targets[2].isVisible)
 
 T.truthy(loadedWidget:KeyPress(301, {}, false, "capslock"))
 T.truthy(environment.document.shown)
@@ -415,6 +438,11 @@ T.contains(rmlSource, 'class="settings-panel" data-style-background-color="setti
 T.falsy(string.find(rmlSource, "LIVE TACTICAL", 1, true), "removed tactical caption returned")
 T.contains(rmlSource, 'class="card-header" data-if="!card.isEmpty"', "empty card header is still rendered")
 T.contains(rmlSource, 'class="card-body" data-if="!card.isEmpty"', "empty card body is still rendered")
+T.contains(rmlSource, 'data-class-hidden="!chip.isVisible"', "unused unit-chip rows remain visible")
+T.contains(rmlSource, 'data-if="chip.hasImage"', "empty unit-chip rows still request textures")
+T.contains(rmlSource, '<img data-if="chip.hasImage"', "unit portraits do not use the standard RmlUi image element")
+T.contains(rmlSource, 'data-class-hidden="!marker.isVisible"', "unused unit-marker rows remain visible")
+T.contains(rmlSource, 'data-class-hidden="!target.isVisible"', "unused target rows remain visible")
 local rcssSource = T.read(root .. "gui_unit_navigator.rcss")
 local function CssRuleContains(selector, declaration)
 	local selectorStart = assert(string.find(rcssSource, selector, 1, true), "missing CSS selector: " .. selector)
@@ -436,5 +464,6 @@ T.truthy(CssRuleContains(".settings-panel", "width: 60%;"), "settings panel was 
 T.truthy(CssRuleContains(".settings-panel", "height: 66%;"), "settings panel was not shortened")
 T.truthy(CssRuleContains(".navigator-card.empty,", "opacity: 0;"), "empty card remains visible")
 T.truthy(CssRuleContains(".navigator-card.empty,", "pointer-events: none;"), "empty card remains interactive")
+T.truthy(CssRuleContains(".unit-chip img", "width: 100%;"), "unit portraits do not fill their chips")
 
 print("test_unit_navigator_widget.lua: ok")
