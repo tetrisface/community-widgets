@@ -673,6 +673,7 @@ function widget:ViewResize() if state.interaction and (state.interaction.active 
 
 function widget:IsAbove(x, y)
 	if not state.document or not state.interaction then return false end
+	if not state.interaction.active and not state.interaction.settingsOpen then return false end
 	local id = state.interaction.settingsOpen and SETTINGS_ID or GRID_ID
 	local element = state.document:GetElementById(id)
 	local left, top, width, height = ElementBounds(element)
