@@ -39,8 +39,9 @@ local spSetConfigString = Spring.SetConfigString
 local spGetViewGeometry = Spring.GetViewGeometry
 local spGetMouseState = Spring.GetMouseState
 
-local isRaptors = Spring.Utilities.Gametype.IsRaptors()
-local isScavengers = Spring.Utilities.Gametype.IsScavengers()
+local Utilities = (BAR and BAR.Utilities) or Spring.Utilities
+local isRaptors = Utilities.Gametype.IsRaptors()
+local isScavengers = Utilities.Gametype.IsScavengers()
 
 local glColor = gl.Color
 local glRect = gl.Rect
