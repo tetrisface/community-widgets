@@ -1,0 +1,10 @@
+{
+  "id": "gui_raptor_panel_aggro",
+  "version": "2.0.0",
+  "display_name": "Raptor Stats Panel With Eco Attraction",
+  "author": "quantum, tetrisface",
+  "discord_link": "https://discord.com/channels/549281623154229250/1203485910512173096",
+  "github_link": "https://github.com/tetrisface/community-widgets/blob/main/gui_raptor_panel_aggro/gui_raptor_panel_aggro.lua",
+  "description": "Raptor/Scavenger stats panel with per-player eco attraction, smooth queen ETA countdown, boss resistances and damage breakdown",
+  "last_updated": "2026-08-20T00:00:00.000Z"
+}
