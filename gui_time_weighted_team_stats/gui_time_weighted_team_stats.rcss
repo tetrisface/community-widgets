@@ -25,7 +25,7 @@ body, div {
 /* Title Bar */
 .title-bar {
 	height: 25dp;
-	background-color: #1A1F26CC;
+	background-color: #1A1F26ED;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -146,7 +146,6 @@ body, div {
 	width: auto;
 	flex: 1;
 	min-height: 80dp;
-	margin: 4dp;
 }
 
 /* Empty State */
@@ -163,7 +162,7 @@ body, div {
 
 /* Table Area */
 .table-area {
-	padding: 0 4dp 4dp 4dp;
+	padding: 0 0 4dp 0;
 	flex-shrink: 0;
 	background-color: #0D0D0DEB;
 }
@@ -171,8 +170,6 @@ body, div {
 /* View Mode Toggle */
 .view-toggle {
 	display: flex;
-	gap: 2dp;
-	padding: 2dp 0;
 	margin-bottom: 2dp;
 }
 
@@ -200,7 +197,7 @@ body, div {
 	display: flex;
 	align-items: center;
 	height: 14dp;
-	padding: 1dp 0;
+	padding: 1dp 4dp;
 	border-bottom-width: 1dp;
 	border-bottom-color: #262E38;
 }
@@ -265,7 +262,7 @@ body, div {
 	display: flex;
 	align-items: center;
 	height: 16dp;
-	padding: 1dp 0;
+	padding: 1dp 4dp;
 }
 
 .player-row:hover {
@@ -343,6 +340,20 @@ body, div {
 	cursor: resize;
 }
 
+/* Dark L offset under the grip: keeps it legible over the GL graph's bright
+   team colors without boxing the corner in. */
+.resize-grip-shadow {
+	position: absolute;
+	bottom: 1dp;
+	right: 1dp;
+	width: 8dp;
+	height: 8dp;
+	border-right-width: 2dp;
+	border-bottom-width: 2dp;
+	border-right-color: #0F1419E6;
+	border-bottom-color: #0F1419E6;
+}
+
 .resize-grip {
 	position: absolute;
 	bottom: 2dp;
@@ -351,8 +362,8 @@ body, div {
 	height: 8dp;
 	border-right-width: 2dp;
 	border-bottom-width: 2dp;
-	border-right-color: #8099B366;
-	border-bottom-color: #8099B366;
+	border-right-color: #B3CCE6CC;
+	border-bottom-color: #B3CCE6CC;
 }
 
 .resize-handle:hover .resize-grip {

@@ -83,6 +83,7 @@
 
 		<!-- Corner Resize Handle -->
 		<handle size_target="wts-panel" edge_margin="none" class="resize-handle">
+			<div class="resize-grip-shadow"></div>
 			<div class="resize-grip"></div>
 		</handle>
 	</div>

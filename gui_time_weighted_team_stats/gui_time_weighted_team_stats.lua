@@ -505,7 +505,6 @@ local dm_handle
 local frameCounter = 0
 local dataDirty = false
 local graphDirty = false
-local panelHeightSet = false
 
 -- UI state
 local DEFAULT_VIEW_WIDTH = 2560
@@ -812,6 +811,25 @@ local function SaveUIState()
 	spSetConfigString(SELECTED_ALLY_TEAM_CONFIG_KEY, EncodeSelectedAllyTeamConfig(selectedAllyTeam))
 end
 
+--- The graph area is the panel's only flexible child, so an explicit height only
+--- makes sense while it is shown. With the graph hidden, wrap the fixed-height
+--- content instead — otherwise the panel keeps claiming the graph's empty space
+--- and the resize handle floats at the phantom bottom edge.
+local function ApplyPanelHeight()
+	if not document then
+		return
+	end
+	local panel = document:GetElementById('wts-panel')
+	if not panel then
+		return
+	end
+	if graphVisible and widgetHeight then
+		panel.style.height = widgetHeight .. 'px'
+	else
+		panel.style.height = 'auto'
+	end
+end
+
 local function UpdateDocumentPosition()
 	if document then
 		local panel = document:GetElementById('wts-panel')
@@ -821,12 +839,9 @@ local function UpdateDocumentPosition()
 			if widgetWidth then
 				panel.style.width = widgetWidth .. 'px'
 			end
-			if widgetHeight then
-				panel.style.height = widgetHeight .. 'px'
-				panelHeightSet = true
-			end
 		end
 	end
+	ApplyPanelHeight()
 end
 
 --- Recompute all weighted stats from fresh snapshots.
@@ -1127,15 +1142,6 @@ local function UpdateRMLuiData()
 	end
 
 	local graphModeLabels = { absolute = 'Abs', normalized = 'Norm', overlay = 'Lines' }
-
-	-- Set panel height once data is available so flex layout works
-	if hasData and not panelHeightSet and document then
-		local panel = document:GetElementById('wts-panel')
-		if panel then
-			panel.style.height = '320dp'
-			panelHeightSet = true
-		end
-	end
 
 	dm_handle.has_data = hasData
 	dm_handle.empty_text = frameCounter > 0 and 'Collecting data...' or 'Starting...'
@@ -1455,15 +1461,6 @@ function widget:Initialize()
 
 	UpdateDocumentPosition()
 
-	-- Set a default height immediately so the "Starting..." panel doesn't jump when data arrives
-	if not widgetHeight then
-		local panel = document:GetElementById('wts-panel')
-		if panel then
-			panel.style.height = '320dp'
-			panelHeightSet = true
-		end
-	end
-
 	-- Force initial data load instead of waiting for first STATS_UPDATE_FREQUENCY
 	RecomputeStats()
 	UpdateRMLuiData()
@@ -1739,7 +1736,12 @@ function widget:OnDragEnd(event)
 		widgetPosX = math_floor(panel.absolute_left)
 		widgetPosY = math_floor(panel.absolute_top)
 		widgetWidth = math_floor(panel.offset_width)
-		widgetHeight = math_floor(panel.offset_height)
+		if graphVisible then
+			widgetHeight = math_floor(panel.offset_height)
+		end
+		-- Re-assert height policy: undoes any explicit height a resize drag put on
+		-- the auto-height (graph hidden) panel.
+		ApplyPanelHeight()
 		SavePosition()
 		SaveSize()
 	end
@@ -1754,6 +1756,7 @@ end
 function widget:ToggleGraph(event)
 	graphVisible = not graphVisible
 	dataDirty = true
+	ApplyPanelHeight()
 	SaveUIState()
 end
 
