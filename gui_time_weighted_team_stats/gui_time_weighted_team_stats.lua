@@ -541,6 +541,7 @@ local fontScale3 = 1.0  -- table columns and cells
 local isCtrlDown = false
 local windowAggregation = 8 -- merge N engine snapshots into one window
 local lobbyOverlayActive = false
+local closedByUser = false -- X hides until the next game or LuaUI reload, without disabling the widget
 local lastDocumentHiddenState = nil
 local loadedPositionFromConfig = false
 local loadedSizeFromConfig = false
@@ -549,7 +550,7 @@ local SELECTED_ALLY_TEAM_ALL = 'all'
 local SELECTED_ALLY_TEAM_MISSING = '__missing__'
 
 local function ShouldHideDocument()
-	return spIsGUIHidden() or lobbyOverlayActive
+	return closedByUser or spIsGUIHidden() or lobbyOverlayActive
 end
 
 local function UpdateDocumentVisibility()
@@ -1724,7 +1725,8 @@ end
 --------------------------------------------------------------------------------
 
 function widget:CloseWidget(event)
-	Spring.SendCommands('luaui disablewidget ' .. WIDGET_NAME)
+	closedByUser = true
+	UpdateDocumentVisibility()
 end
 
 function widget:OnDragEnd(event)
@@ -1889,7 +1891,7 @@ local function IsAboveEl(el, x, y)
 end
 
 function widget:IsAbove(x, y)
-	if not document then return false end
+	if not document or ShouldHideDocument() then return false end
 	return IsAboveEl(document:GetElementById('wts-panel'), x, y)
 end
 
