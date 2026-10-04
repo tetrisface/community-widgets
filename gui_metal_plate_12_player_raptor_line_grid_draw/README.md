@@ -13,7 +13,10 @@ Full Metal Plate has no natural lanes or start boxes worth the name in PvE. The 
 ##############################################################
 - Draws the full build grid as **map line markers**, visible to allies — one player running the widget is enough
 - **Survives BAR's auto map mark eraser**: every line is re-drawn just after the default 60 second erase, for as long as the grid is needed
+- Several players can run it without doubling the lines: whoever has the lowest player ID keeps the grid up, the others take over if that player stops
 - Stops maintaining the grid after **13 minutes** of game time, once the placement phase is over
+- Stays silent while catching up after joining a running game, so a late join doesn't flood everyone's map
+- Leaves out lines more than **10% of the map width** outside your team's start box (polygon start boxes included), so other lobby setups only get the relevant part
 - Sends lines in small batches to stay under the engine's marker spam protection
-- Posts a one-time chat hint on how to keep the lines for the whole match (disable *Auto erase map marks* in settings)
+- Posts a one-time chat hint on how to keep the lines for the whole match (disable *Auto erase map marks* in settings), skipped when someone already posted one
 - Only activates when it should: as a player (not spectating), in Raptors/Scavengers games, on Full Metal Plate with a matching map size

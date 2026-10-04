@@ -1,9 +1,10 @@
 function widget:GetInfo()
 	return {
 		name = 'Raptor Grid Draw 12 players (Full Metal Plate)',
-		desc = 'Draws fairly distributed build border for 12 players raptor mode on Full Metal Plate map',
+		desc = 'Paints base build lines for 12 players on the map Full Metal Plate. With bases divided evenly in size',
 		author = 'Lu5ck, tetrisface',
 		date = '31 May 2025',
+		license = 'GNU GPL, v2 or later',
 		layer = 1,
 		enabled = true,
 	}
@@ -104,20 +105,45 @@ local ERASE_SECONDS = 60
 local MARGIN_SECONDS = 1
 local REDRAW_FRAMES = (ERASE_SECONDS + MARGIN_SECONDS) * 30
 
+-- Several players may run this widget. The lowest playerID keeps the grid up, the rest skip
+-- any line it drew within the last cycle and take over once it stops. Recency is when its
+-- draw arrived here, so nobody's eraser setting matters. The slack covers its send queue
+-- running behind ours, worst after pregame where every draw lands on frame 0.
+local YIELD_FRAMES = REDRAW_FRAMES + 15 * 30
+
 -- The grid is a placement aid, so stop maintaining it once the game is past that stage.
 -- Whatever is on the map then survives until each client's eraser gets to it.
 local STOP_FRAME = 13 * 60 * 30
 
-local NOTICE = "To keep map lines for the whole match disable 'Auto erase map marks' in settings"
+-- A client that joins a running game first replays it at full speed. Markers sent then would
+-- reach every player at once, so lines only go out while the sim runs at about real time.
+-- ponytail: rate heuristic, a catch-up slower than CATCHUP_RATE reads as live play.
+-- GameProgress(serverFrame) is exact but first arrives up to 5 s into the catch-up.
+local CATCHUP_RATE = 2
+local RATE_WINDOW_SECONDS = 2
+
+-- Other lobby setups move the players' start box, lines farther than this from it are left out
+local START_BOX_MARGIN = 0.1 -- of map width
+
+local NOTICE = "To keep map lines for the whole match disable 'Interface' -> 'Auto erase map marks' in settings"
 
 local timer = 0
-local noticeSent = false
+local noticeSent = false -- by us or anyone else, see AddConsoleLine
+local live = false -- not replaying a running game, see CATCHUP_RATE
+local rateFrame, rateSeconds = 0, 0
 
 local lines = {} -- every segment of the grid, built once and then re-sent forever
 local sendQueue = {} -- indices into lines awaiting transmission (workaround for spring draw spam protection)
 local sendHead, sendTail = 1, 0
 local pendingIndex, pendingDue = {}, {} -- sent segments awaiting their redraw, ordered by due frame
 local pendingHead, pendingTail = 1, 0
+local lineIndexByKey = {} -- endpoints -> index into lines, to recognise another player's copy
+local drawnByOtherFrame = {} -- index into lines -> last frame a lower playerID drew it, see YIELD_FRAMES
+
+-- Map draw positions travel as integers
+local function lineKey(x1, z1, x2, z2)
+	return string.format('%d %d %d %d', math.floor(x1 + 0.5), math.floor(z1 + 0.5), math.floor(x2 + 0.5), math.floor(z2 + 0.5))
+end
 
 local function pushSend(index)
 	sendTail = sendTail + 1
@@ -148,12 +174,76 @@ local function drawLine(y, startX, startZ, endX, endZ)
 		local ex = startX + dx * t2
 		local ez = startZ + dz * t2
 
-		lines[#lines + 1] = { startX = sx, startZ = sz, endX = ex, endZ = ez, y = y }
+		local key = lineKey(sx, sz, ex, ez)
+		if not lineIndexByKey[key] then -- neighbouring cells both name their shared border
+			lines[#lines + 1] = { startX = sx, startZ = sz, endX = ex, endZ = ez, y = y }
+			lineIndexByKey[key] = #lines
+		end
 	end
 end
 
 local function hasBit(val, bit)
 	return math.floor(val / bit) % 2 == 1
+end
+
+-- 0 inside the polygon, otherwise the distance to its nearest edge
+local function distanceToPolygon(x, z, polygon)
+	local inside = false
+	local nearestSq = math.huge
+	local j = #polygon
+	for i = 1, #polygon do
+		local ax, az = polygon[j][1], polygon[j][2]
+		local bx, bz = polygon[i][1], polygon[i][2]
+		if (az > z) ~= (bz > z) and x < ax + (z - az) * (bx - ax) / (bz - az) then
+			inside = not inside
+		end
+		local ex, ez = bx - ax, bz - az
+		local lengthSq = ex * ex + ez * ez
+		local t = lengthSq > 0 and math.max(0, math.min(1, ((x - ax) * ex + (z - az) * ez) / lengthSq)) or 0
+		local dx, dz = ax + ex * t - x, az + ez * t - z
+		nearestSq = math.min(nearestSq, dx * dx + dz * dz)
+		j = i
+	end
+	return inside and 0 or math.sqrt(nearestSq)
+end
+
+-- Polygon start boxes (mapmetadata modoptions) come from the parser BAR's own start box
+-- widget uses. It expands both lobby box formats, a 2 point rectangle and an N point
+-- polygon, into polygons. Without a polygon config the engine rectangle is the start box,
+-- which for a polygon is only its bounding box.
+local function getStartPolygons(allyTeamID)
+	local included, startboxLib = pcall(VFS.Include, 'luarules/gadgets/include/startbox_utilities.lua')
+	-- Two return formats: older BAR returns ParseBoxes itself, newer BAR (require
+	-- refactor, #9338) a module table holding it. Calling the module fails inside the
+	-- pcall below and silently degrades to the bounding box, so pick the function out.
+	local parseBoxes = type(startboxLib) == 'table' and startboxLib.ParseBoxes or startboxLib
+	if included and parseBoxes then
+		local parsed, config, _, isExplicit = pcall(parseBoxes)
+		if parsed and isExplicit and config[allyTeamID] and config[allyTeamID].boxes then
+			return config[allyTeamID].boxes
+		end
+	end
+	local xMin, zMin, xMax, zMax = Spring.GetAllyTeamStartBox(allyTeamID)
+	return { { { xMin, zMin }, { xMax, zMin }, { xMax, zMax }, { xMin, zMax } } }
+end
+
+local function isNearAny(polygons, x, z, maxDistance)
+	for _, polygon in ipairs(polygons) do
+		if distanceToPolygon(x, z, polygon) <= maxDistance then
+			return true
+		end
+	end
+	return false
+end
+
+local function updateLive(dt, frame)
+	rateSeconds = rateSeconds + dt
+	if rateSeconds < RATE_WINDOW_SECONDS then
+		return
+	end
+	local userSpeed = Spring.GetGameSpeed()
+	live = frame - rateFrame <= rateSeconds * 30 * userSpeed * CATCHUP_RATE
+	rateFrame, rateSeconds = frame, 0
 end
 
 -- Game-side utilities (BAR.Utilities on current versions, Spring.Utilities on
@@ -236,8 +326,13 @@ function widget:Initialize()
 		end
 	end
 
+	local startPolygons = getStartPolygons(Spring.GetMyAllyTeamID())
+	local maxDistance = START_BOX_MARGIN * Game.mapSizeX
 	for i = 1, #lines do
-		pushSend(i)
+		local line = lines[i]
+		if isNearAny(startPolygons, (line.startX + line.endX) / 2, (line.startZ + line.endZ) / 2, maxDistance) then
+			pushSend(i)
+		end
 	end
 end
 
@@ -247,6 +342,11 @@ function widget:Update(dt)
 
 	if frame >= STOP_FRAME then
 		widgetHandler:RemoveWidget() -- Done redrawing, stop the widget
+		return
+	end
+
+	updateLive(dt, frame)
+	if not live then
 		return
 	end
 
@@ -276,9 +376,15 @@ function widget:Update(dt)
 		if sendHead > sendTail then
 			break
 		end
-		local line = lines[sendQueue[sendHead]]
-		Spring.MarkerAddLine(line.startX, line.y, line.startZ, line.endX, line.y, line.endZ)
-		pushPending(sendQueue[sendHead], dueFrame)
+		-- A skipped line still takes its slot, so we trail a player who started earlier
+		-- instead of catching up and drawing the same lines in lockstep with them
+		local index = sendQueue[sendHead]
+		local otherFrame = drawnByOtherFrame[index]
+		if not otherFrame or frame - otherFrame >= YIELD_FRAMES then
+			local line = lines[index]
+			Spring.MarkerAddLine(line.startX, line.y, line.startZ, line.endX, line.y, line.endZ)
+		end
+		pushPending(index, dueFrame)
 		sendQueue[sendHead] = nil
 		sendHead = sendHead + 1
 	end
@@ -289,5 +395,27 @@ function widget:Update(dt)
 			noticeSent = true
 			Spring.SendCommands('say ' .. NOTICE) -- no prefix, so players and spectators both see it
 		end
+	end
+end
+
+-- Every player running this widget, or another implementation of it, would post the hint.
+-- One in chat is enough, so a line naming the setting and settings counts as already sent.
+-- Rejoining clients replay the chat, so they see an earlier hint as well.
+function widget:AddConsoleLine(msg)
+	if noticeSent then
+		return
+	end
+	local lower = string.lower(msg)
+	noticeSent = string.find(lower, 'auto erase map marks', 1, true) ~= nil and string.find(lower, 'settings', 1, true) ~= nil
+end
+
+-- Higher playerIDs, and our own draws coming back, never make us yield, see YIELD_FRAMES
+function widget:MapDrawCmd(playerID, cmdType, x1, _, z1, x2, _, z2)
+	if cmdType ~= 'line' or playerID >= Spring.GetMyPlayerID() then
+		return
+	end
+	local index = lineIndexByKey[lineKey(x1, z1, x2, z2)]
+	if index then
+		drawnByOtherFrame[index] = Spring.GetGameFrame()
 	end
 end
