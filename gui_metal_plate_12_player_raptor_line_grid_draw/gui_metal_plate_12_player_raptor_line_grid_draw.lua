@@ -125,7 +125,7 @@ local RATE_WINDOW_SECONDS = 2
 -- Other lobby setups move the players' start box, lines farther than this from it are left out
 local START_BOX_MARGIN = 0.1 -- of map width
 
-local NOTICE = "To keep map lines for the whole match disable 'Interface' -> 'Auto erase map marks' in settings"
+local NOTICE = "To keep map lines for the whole match disable 'Interface' -> 'Auto erase map marks' in settings or download widget 'Raptor Grid Draw'"
 
 local timer = 0
 local noticeSent = false -- by us or anyone else, see AddConsoleLine
